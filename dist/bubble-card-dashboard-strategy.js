@@ -2,7 +2,7 @@
 var STRATEGY_TYPE = "bubble-card-dashboard";
 var DASHBOARD_ELEMENT = "ll-strategy-dashboard-bubble-card-dashboard";
 var VIEW_ELEMENT = "ll-strategy-view-bubble-card-dashboard";
-var VERSION = "0.3.0";
+var VERSION = "0.4.0";
 var DEFAULT_MAX_ENTITIES_PER_AREA = 24;
 var DEFAULT_MEDIA_PLAYER_CARD = "bubble-card";
 var ROOMS_POPUP_HASH = "#rooms";
@@ -63,6 +63,16 @@ var BubbleDashboardStrategy = class extends HTMLElement {
             entities,
             options: config
           }
+        },
+        {
+          title: "Settings",
+          path: "settings",
+          icon: "mdi:cog",
+          strategy: {
+            type: `custom:${STRATEGY_TYPE}`,
+            view: "settings",
+            options: config
+          }
         }
       ]
     };
@@ -79,6 +89,9 @@ var BubbleViewStrategy = class extends HTMLElement {
         hass,
         options
       );
+    }
+    if (config.view === "settings") {
+      return buildSettingsView(hass, options);
     }
     return buildAreaView(config.area, config.entities, config.devices, hass, options);
   }
@@ -114,7 +127,7 @@ function buildOverviewCards(entities, hass, options) {
       }
     ] : [],
     ...mediaPlayer ? [
-      mediaPlayerToCard(mediaPlayer, options)
+      mediaPlayerToCard(mediaPlayer, options, hass)
     ] : [],
     ...climate ? [
       {
@@ -143,6 +156,57 @@ function buildOverviewCards(entities, hass, options) {
       ]
     }))
   ];
+}
+function buildSettingsView(hass, options) {
+  const mediaPlayerCard = getMediaPlayerCardType(options, hass);
+  const mediaPlayerCardHelper = options.media_player_card_helper;
+  const cards = [
+    bubbleSeparator("Settings", "mdi:cog"),
+    {
+      type: "markdown",
+      content: [
+        `**Media player card:** \`${mediaPlayerCard}\``,
+        "",
+        "Choose which card should be generated for media players. Changes from a helper apply after refreshing the dashboard."
+      ].join("\n")
+    }
+  ];
+  if (mediaPlayerCardHelper && hass.states[mediaPlayerCardHelper]) {
+    cards.push({
+      type: "entities",
+      title: "Media player card",
+      entities: [
+        {
+          entity: mediaPlayerCardHelper,
+          name: "Card type"
+        }
+      ]
+    });
+  } else {
+    cards.push({
+      type: "markdown",
+      content: [
+        "To make this setting selectable from the UI, create an `input_select` helper with these options:",
+        "",
+        "- `bubble-card`",
+        "- `mini-media-player`",
+        "- `yamp`",
+        "",
+        "Then add the helper to your dashboard strategy config:",
+        "",
+        "```yaml",
+        "strategy:",
+        "  type: custom:bubble-card-dashboard",
+        "  media_player_card_helper: input_select.bubble_card_dashboard_media_player_card",
+        "```"
+      ].join("\n")
+    });
+  }
+  cards.push(buildFooter([]));
+  return {
+    type: "masonry",
+    cards
+  };
 }
 function buildRoomsPopup(areas, entities, devices) {
   return {
@@ -190,7 +254,7 @@ function buildRoomPopup(area, entities, devices, hass, options) {
       type: "grid",
       square: false,
       columns: group.columns,
-      cards: group.entities.map((entity) => entityToCard(entity, options))
+      cards: group.entities.map((entity) => entityToCard(entity, options, hass))
     });
   });
   if (cards.length === 1) {
@@ -215,7 +279,7 @@ function buildRoomPopup(area, entities, devices, hass, options) {
   };
 }
 function buildAreaView(area, entities, devices, hass, options) {
-  const cards = getAreaEntities(area.area_id, entities, devices, hass, options).slice(0, options.max_entities_per_area ?? DEFAULT_MAX_ENTITIES_PER_AREA).map((entity) => entityToCard(entity, options));
+  const cards = getAreaEntities(area.area_id, entities, devices, hass, options).slice(0, options.max_entities_per_area ?? DEFAULT_MAX_ENTITIES_PER_AREA).map((entity) => entityToCard(entity, options, hass));
   return {
     type: "sections",
     max_columns: 3,
@@ -288,10 +352,10 @@ function getAreaEntities(areaId, entities, devices, hass, options) {
   const ignoredDomains = /* @__PURE__ */ new Set([...options.ignored_domains ?? [], ...DEFAULT_IGNORED_DOMAINS]);
   return entities.filter((entity) => entityBelongsToArea(entity, areaId, devices)).filter((entity) => entity.entity_id in hass.states).filter((entity) => !entity.hidden_by && !entity.disabled_by).filter((entity) => !ignoredEntities.has(entity.entity_id)).filter((entity) => !ignoredDomains.has(getDomain(entity.entity_id))).filter((entity) => DOMAIN_CARD_TYPES[getDomain(entity.entity_id)]).sort((left, right) => getFriendlyName(left, hass).localeCompare(getFriendlyName(right, hass)));
 }
-function entityToCard(entity, options) {
+function entityToCard(entity, options, hass) {
   const domain = getDomain(entity.entity_id);
   if (domain === "media_player") {
-    return mediaPlayerToCard(entity.entity_id, options);
+    return mediaPlayerToCard(entity.entity_id, options, hass);
   }
   return entityToBubbleCard(entity);
 }
@@ -312,8 +376,8 @@ function entityToBubbleCard(entity) {
     entity: entity.entity_id
   };
 }
-function mediaPlayerToCard(entityId, options) {
-  switch (getMediaPlayerCardType(options)) {
+function mediaPlayerToCard(entityId, options, hass) {
+  switch (getMediaPlayerCardType(options, hass)) {
     case "mini-media-player":
       return {
         type: "custom:mini-media-player",
@@ -342,11 +406,24 @@ function mediaPlayerToCard(entityId, options) {
       };
   }
 }
-function getMediaPlayerCardType(options) {
-  if (["bubble-card", "mini-media-player", "yamp"].includes(options.media_player_card || "")) {
-    return options.media_player_card;
+function getMediaPlayerCardType(options, hass) {
+  const helperState = options.media_player_card_helper ? hass?.states[options.media_player_card_helper]?.state : void 0;
+  const helperValue = normalizeMediaPlayerCardType(helperState);
+  if (helperValue) {
+    return helperValue;
+  }
+  const configValue = normalizeMediaPlayerCardType(options.media_player_card);
+  if (configValue) {
+    return configValue;
   }
   return DEFAULT_MEDIA_PLAYER_CARD;
+}
+function normalizeMediaPlayerCardType(value) {
+  const normalizedValue = value?.toLowerCase().trim().replace(/\s+/g, "-").replace(/^yet-another-media-player$/, "yamp");
+  if (normalizedValue === "bubble-card" || normalizedValue === "mini-media-player" || normalizedValue === "yamp") {
+    return normalizedValue;
+  }
+  return void 0;
 }
 function bubbleSeparator(name, icon) {
   return {
@@ -379,11 +456,14 @@ function buildFooter(areas) {
     "1_link": ROOMS_POPUP_HASH,
     "1_name": "Rooms",
     "1_icon": "mdi:floor-plan",
+    "2_link": "settings",
+    "2_name": "Settings",
+    "2_icon": "mdi:cog",
     auto_order: false,
     highlight_current_view: true
   };
-  areas.slice(0, 6).forEach((area, index) => {
-    const position = index + 2;
+  areas.slice(0, 5).forEach((area, index) => {
+    const position = index + 3;
     footer[`${position}_link`] = getRoomHash(area);
     footer[`${position}_name`] = area.name;
     footer[`${position}_icon`] = area.icon || "mdi:home-outline";
