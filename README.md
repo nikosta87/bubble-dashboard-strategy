@@ -140,7 +140,6 @@ strategy:
   type: custom:bubble-card-dashboard
   title: My Home
   media_player_card: bubble-card
-  media_player_card_helper: input_select.bubble_card_dashboard_media_player_card
   max_entities_per_area: 24
   ignored_domains:
     - sensor
@@ -154,30 +153,19 @@ strategy:
 | --- | --- | --- | --- |
 | `title` | string | Home Assistant location name | Dashboard title |
 | `media_player_card` | string | `bubble-card` | Media player card type. Use `bubble-card`, `mini-media-player`, or `yamp` |
-| `media_player_card_helper` | string | none | Optional `input_select` helper used by the Settings page to choose the media player card type |
 | `max_entities_per_area` | number | `24` | Maximum number of generated entity cards per area |
 | `ignored_domains` | string[] | `[]` | Domains to exclude from generated room views |
 | `ignored_entities` | string[] | `[]` | Specific entities to exclude |
 
-### Settings Page
+### Graphical Editor
 
-The dashboard includes a generated **Settings** view. To make the media player card type selectable from that page, create an `input_select` helper in Home Assistant with these options:
+The dashboard includes a Home Assistant strategy editor, similar to the editor used by Simon42 Dashboard Strategy.
 
-```text
-bubble-card
-mini-media-player
-yamp
-```
+Open the dashboard, click the edit pencil, then open the dashboard edit dialog. The editor lets you configure:
 
-Then reference that helper in the strategy config:
-
-```yaml
-strategy:
-  type: custom:bubble-card-dashboard
-  media_player_card_helper: input_select.bubble_card_dashboard_media_player_card
-```
-
-The Settings page will show the helper as a dropdown. After changing it, refresh the dashboard so the strategy can regenerate the cards with the selected media player card type.
+- dashboard title
+- media player card type
+- maximum generated entities per room
 
 ### Media Player Cards
 

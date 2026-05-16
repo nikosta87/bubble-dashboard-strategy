@@ -36,7 +36,6 @@ type StrategyConfig = {
   ignored_domains?: string[];
   max_entities_per_area?: number;
   media_player_card?: MediaPlayerCardType;
-  media_player_card_helper?: string;
 };
 
 type MediaPlayerCardType = "bubble-card" | "mini-media-player" | "yamp";
@@ -45,7 +44,8 @@ type LovelaceCard = Record<string, unknown>;
 const STRATEGY_TYPE = "bubble-card-dashboard";
 const DASHBOARD_ELEMENT = "ll-strategy-dashboard-bubble-card-dashboard";
 const VIEW_ELEMENT = "ll-strategy-view-bubble-card-dashboard";
-const VERSION = "0.4.0";
+const EDITOR_ELEMENT = "bubble-card-dashboard-strategy-editor";
+const VERSION = "0.5.0";
 const DEFAULT_MAX_ENTITIES_PER_AREA = 24;
 const DEFAULT_MEDIA_PLAYER_CARD: MediaPlayerCardType = "bubble-card";
 const ROOMS_POPUP_HASH = "#rooms";
@@ -115,18 +115,13 @@ class BubbleDashboardStrategy extends HTMLElement {
             options: config,
           },
         },
-        {
-          title: "Settings",
-          path: "settings",
-          icon: "mdi:cog",
-          strategy: {
-            type: `custom:${STRATEGY_TYPE}`,
-            view: "settings",
-            options: config,
-          },
-        },
       ],
     };
+  }
+
+  static async getConfigElement() {
+    await customElements.whenDefined(EDITOR_ELEMENT);
+    return document.createElement(EDITOR_ELEMENT);
   }
 }
 
@@ -144,11 +139,178 @@ class BubbleViewStrategy extends HTMLElement {
       );
     }
 
-    if (config.view === "settings") {
-      return buildSettingsView(hass, options);
+    return buildAreaView(config.area as HassArea, config.entities as HassEntity[], config.devices as HassDevice[], hass, options);
+  }
+}
+
+class BubbleCardDashboardStrategyEditor extends HTMLElement {
+  private _config: StrategyConfig = {};
+  private _hass?: HomeAssistant;
+
+  set hass(hass: HomeAssistant) {
+    this._hass = hass;
+    this.render();
+  }
+
+  setConfig(config: StrategyConfig) {
+    this._config = {
+      media_player_card: DEFAULT_MEDIA_PLAYER_CARD,
+      max_entities_per_area: DEFAULT_MAX_ENTITIES_PER_AREA,
+      ...config,
+    };
+    this.render();
+  }
+
+  connectedCallback() {
+    this.render();
+  }
+
+  private render() {
+    const mediaPlayerCard = getMediaPlayerCardType(this._config);
+    const maxEntities = this._config.max_entities_per_area ?? DEFAULT_MAX_ENTITIES_PER_AREA;
+
+    this.innerHTML = `
+      <style>
+        :host {
+          display: block;
+          color: var(--primary-text-color);
+        }
+
+        .section {
+          margin: 0 0 28px;
+        }
+
+        .section-title {
+          font-weight: 600;
+          margin: 0 0 14px;
+        }
+
+        .field {
+          display: grid;
+          grid-template-columns: minmax(150px, 220px) 1fr;
+          gap: 16px;
+          align-items: center;
+          margin: 16px 0 8px;
+        }
+
+        label {
+          font-weight: 500;
+        }
+
+        input,
+        select {
+          width: 100%;
+          box-sizing: border-box;
+          border: 1px solid var(--divider-color);
+          border-radius: 6px;
+          background: var(--secondary-background-color);
+          color: var(--primary-text-color);
+          font: inherit;
+          padding: 10px 12px;
+        }
+
+        .hint {
+          grid-column: 2;
+          color: var(--secondary-text-color);
+          font-size: 0.9em;
+          line-height: 1.4;
+          margin-top: 2px;
+        }
+
+        @media (max-width: 640px) {
+          .field {
+            grid-template-columns: 1fr;
+            gap: 8px;
+          }
+
+          .hint {
+            grid-column: 1;
+          }
+        }
+      </style>
+
+      <div class="section">
+        <div class="section-title">General</div>
+        <div class="field">
+          <label for="title">Dashboard title</label>
+          <input id="title" data-field="title" type="text" value="${escapeHtml(this._config.title || "")}" placeholder="${escapeHtml(this._hass?.config.location_name || "Bubble Card Dashboard")}">
+          <div class="hint">Leave empty to use the Home Assistant location name.</div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">Media</div>
+        <div class="field">
+          <label for="media_player_card">Media player card</label>
+          <select id="media_player_card" data-field="media_player_card">
+            ${mediaPlayerCardOption("bubble-card", "Bubble Card", mediaPlayerCard)}
+            ${mediaPlayerCardOption("mini-media-player", "Mini Media Player", mediaPlayerCard)}
+            ${mediaPlayerCardOption("yamp", "Yet Another Media Player", mediaPlayerCard)}
+          </select>
+          <div class="hint">Mini Media Player and YAMP must be installed separately before selecting them.</div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">Rooms</div>
+        <div class="field">
+          <label for="max_entities_per_area">Max entities per room</label>
+          <input id="max_entities_per_area" data-field="max_entities_per_area" type="number" min="1" max="100" value="${maxEntities}">
+          <div class="hint">Limits how many generated entity cards are shown inside each room pop-up.</div>
+        </div>
+      </div>
+    `;
+
+    this.querySelectorAll("[data-field]").forEach((element) => {
+      element.addEventListener("change", (event) => this.handleChange(event));
+      element.addEventListener("input", (event) => this.handleInput(event));
+    });
+  }
+
+  private handleInput(event: Event) {
+    const target = event.target as HTMLInputElement | HTMLSelectElement;
+
+    if (target.dataset.field === "title") {
+      this.updateConfig(target.dataset.field, target.value || undefined);
+    }
+  }
+
+  private handleChange(event: Event) {
+    const target = event.target as HTMLInputElement | HTMLSelectElement;
+    const field = target.dataset.field;
+
+    if (!field || field === "title") {
+      return;
     }
 
-    return buildAreaView(config.area as HassArea, config.entities as HassEntity[], config.devices as HassDevice[], hass, options);
+    if (field === "max_entities_per_area") {
+      this.updateConfig(field, clampNumber(Number(target.value), 1, 100));
+      return;
+    }
+
+    this.updateConfig(field, target.value);
+  }
+
+  private updateConfig(field: string, value: unknown) {
+    const nextConfig = {
+      ...this._config,
+      [field]: value,
+    };
+
+    if (value === undefined || value === "") {
+      delete nextConfig[field as keyof StrategyConfig];
+    }
+
+    this._config = nextConfig;
+    this.dispatchEvent(
+      new CustomEvent("config-changed", {
+        detail: {
+          config: nextConfig,
+        },
+        bubbles: true,
+        composed: true,
+      }),
+    );
   }
 }
 
@@ -194,7 +356,7 @@ function buildOverviewCards(entities: HassEntity[], hass: HomeAssistant, options
       : []),
     ...(mediaPlayer
       ? [
-          mediaPlayerToCard(mediaPlayer, options, hass),
+          mediaPlayerToCard(mediaPlayer, options),
         ]
       : []),
     ...(climate
@@ -226,61 +388,6 @@ function buildOverviewCards(entities: HassEntity[], hass: HomeAssistant, options
       ],
     })),
   ];
-}
-
-function buildSettingsView(hass: HomeAssistant, options: StrategyConfig) {
-  const mediaPlayerCard = getMediaPlayerCardType(options, hass);
-  const mediaPlayerCardHelper = options.media_player_card_helper;
-  const cards: LovelaceCard[] = [
-    bubbleSeparator("Settings", "mdi:cog"),
-    {
-      type: "markdown",
-      content: [
-        `**Media player card:** \`${mediaPlayerCard}\``,
-        "",
-        "Choose which card should be generated for media players. Changes from a helper apply after refreshing the dashboard.",
-      ].join("\n"),
-    },
-  ];
-
-  if (mediaPlayerCardHelper && hass.states[mediaPlayerCardHelper]) {
-    cards.push({
-      type: "entities",
-      title: "Media player card",
-      entities: [
-        {
-          entity: mediaPlayerCardHelper,
-          name: "Card type",
-        },
-      ],
-    });
-  } else {
-    cards.push({
-      type: "markdown",
-      content: [
-        "To make this setting selectable from the UI, create an `input_select` helper with these options:",
-        "",
-        "- `bubble-card`",
-        "- `mini-media-player`",
-        "- `yamp`",
-        "",
-        "Then add the helper to your dashboard strategy config:",
-        "",
-        "```yaml",
-        "strategy:",
-        "  type: custom:bubble-card-dashboard",
-        "  media_player_card_helper: input_select.bubble_card_dashboard_media_player_card",
-        "```",
-      ].join("\n"),
-    });
-  }
-
-  cards.push(buildFooter([]));
-
-  return {
-    type: "masonry",
-    cards,
-  };
 }
 
 function buildRoomsPopup(areas: HassArea[], entities: HassEntity[], devices: HassDevice[]): LovelaceCard {
@@ -339,7 +446,7 @@ function buildRoomPopup(
       type: "grid",
       square: false,
       columns: group.columns,
-      cards: group.entities.map((entity) => entityToCard(entity, options, hass)),
+      cards: group.entities.map((entity) => entityToCard(entity, options)),
     });
   });
 
@@ -375,7 +482,7 @@ function buildAreaView(
 ) {
   const cards = getAreaEntities(area.area_id, entities, devices, hass, options)
     .slice(0, options.max_entities_per_area ?? DEFAULT_MAX_ENTITIES_PER_AREA)
-    .map((entity) => entityToCard(entity, options, hass));
+    .map((entity) => entityToCard(entity, options));
 
   return {
     type: "sections",
@@ -469,11 +576,11 @@ function getAreaEntities(
     .sort((left, right) => getFriendlyName(left, hass).localeCompare(getFriendlyName(right, hass)));
 }
 
-function entityToCard(entity: HassEntity, options: StrategyConfig, hass?: HomeAssistant): LovelaceCard {
+function entityToCard(entity: HassEntity, options: StrategyConfig): LovelaceCard {
   const domain = getDomain(entity.entity_id);
 
   if (domain === "media_player") {
-    return mediaPlayerToCard(entity.entity_id, options, hass);
+    return mediaPlayerToCard(entity.entity_id, options);
   }
 
   return entityToBubbleCard(entity);
@@ -499,8 +606,8 @@ function entityToBubbleCard(entity: HassEntity): LovelaceCard {
   };
 }
 
-function mediaPlayerToCard(entityId: string, options: StrategyConfig, hass?: HomeAssistant): LovelaceCard {
-  switch (getMediaPlayerCardType(options, hass)) {
+function mediaPlayerToCard(entityId: string, options: StrategyConfig): LovelaceCard {
+  switch (getMediaPlayerCardType(options)) {
     case "mini-media-player":
       return {
         type: "custom:mini-media-player",
@@ -530,14 +637,7 @@ function mediaPlayerToCard(entityId: string, options: StrategyConfig, hass?: Hom
   }
 }
 
-function getMediaPlayerCardType(options: StrategyConfig, hass?: HomeAssistant): MediaPlayerCardType {
-  const helperState = options.media_player_card_helper ? hass?.states[options.media_player_card_helper]?.state : undefined;
-  const helperValue = normalizeMediaPlayerCardType(helperState);
-
-  if (helperValue) {
-    return helperValue;
-  }
-
+function getMediaPlayerCardType(options: StrategyConfig): MediaPlayerCardType {
   const configValue = normalizeMediaPlayerCardType(options.media_player_card);
 
   if (configValue) {
@@ -590,15 +690,12 @@ function buildFooter(areas: HassArea[]): LovelaceCard {
     "1_link": ROOMS_POPUP_HASH,
     "1_name": "Rooms",
     "1_icon": "mdi:floor-plan",
-    "2_link": "settings",
-    "2_name": "Settings",
-    "2_icon": "mdi:cog",
     auto_order: false,
     highlight_current_view: true,
   };
 
-  areas.slice(0, 5).forEach((area, index) => {
-    const position = index + 3;
+  areas.slice(0, 6).forEach((area, index) => {
+    const position = index + 2;
     footer[`${position}_link`] = getRoomHash(area);
     footer[`${position}_name`] = area.name;
     footer[`${position}_icon`] = area.icon || "mdi:home-outline";
@@ -651,6 +748,27 @@ function getFriendlyName(entity: HassEntity, hass: HomeAssistant) {
   return String(friendlyName || entity.name || entity.original_name || entity.entity_id);
 }
 
+function mediaPlayerCardOption(value: MediaPlayerCardType, label: string, selectedValue: MediaPlayerCardType) {
+  return `<option value="${value}" ${value === selectedValue ? "selected" : ""}>${label}</option>`;
+}
+
+function clampNumber(value: number, min: number, max: number) {
+  if (Number.isNaN(value)) {
+    return min;
+  }
+
+  return Math.min(Math.max(value, min), max);
+}
+
+function escapeHtml(value: string) {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 function slugify(value: string) {
   return value
     .toLowerCase()
@@ -666,6 +784,10 @@ if (!customElements.get(DASHBOARD_ELEMENT)) {
 
 if (!customElements.get(VIEW_ELEMENT)) {
   customElements.define(VIEW_ELEMENT, BubbleViewStrategy);
+}
+
+if (!customElements.get(EDITOR_ELEMENT)) {
+  customElements.define(EDITOR_ELEMENT, BubbleCardDashboardStrategyEditor);
 }
 
 window.customStrategies = window.customStrategies || [];
