@@ -223,13 +223,24 @@ function getFriendlyName(entity, hass) {
 function slugify(value) {
   return value.toLowerCase().normalize("NFKD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
 }
-customElements.define(DASHBOARD_ELEMENT, BubbleDashboardStrategy);
-customElements.define(VIEW_ELEMENT, BubbleViewStrategy);
+if (!customElements.get(DASHBOARD_ELEMENT)) {
+  customElements.define(DASHBOARD_ELEMENT, BubbleDashboardStrategy);
+}
+if (!customElements.get(VIEW_ELEMENT)) {
+  customElements.define(VIEW_ELEMENT, BubbleViewStrategy);
+}
 window.customStrategies = window.customStrategies || [];
-window.customStrategies.push({
-  type: STRATEGY_TYPE,
-  strategyType: "dashboard",
-  name: "Bubble Dashboard",
-  description: "Generates an area-based dashboard with Bubble Card controls.",
-  documentationURL: "https://github.com/nikoroos/bubble-dashboard-strategy"
-});
+if (!window.customStrategies.some((strategy) => strategy.type === STRATEGY_TYPE && strategy.strategyType === "dashboard")) {
+  window.customStrategies.push({
+    type: STRATEGY_TYPE,
+    strategyType: "dashboard",
+    name: "Bubble Dashboard",
+    description: "Generates an area-based dashboard with Bubble Card controls.",
+    documentationURL: "https://github.com/nikosta87/bubble-dashboard-strategy"
+  });
+}
+console.info(
+  "%cBUBBLE-DASHBOARD-STRATEGY%c 0.1.0",
+  "color: white; background: #1d8cf8; font-weight: 700; padding: 2px 4px; border-radius: 3px;",
+  "color: #1d8cf8; font-weight: 700;"
+);

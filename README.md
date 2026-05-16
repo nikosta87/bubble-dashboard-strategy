@@ -89,6 +89,40 @@ JavaScript Module
 
 7. Save the dashboard.
 
+## Troubleshooting
+
+### Timeout waiting for strategy element
+
+If Home Assistant shows this error:
+
+```text
+Timeout waiting for strategy element ll-strategy-dashboard-bubble-dashboard to be registered
+```
+
+the JavaScript resource was not loaded correctly.
+
+Check **Settings** → **Dashboards** → three-dot menu → **Resources** and make sure this resource exists:
+
+```text
+/hacsfiles/bubble-dashboard-strategy/bubble-dashboard-strategy.js
+```
+
+The resource type must be:
+
+```text
+JavaScript Module
+```
+
+If you installed manually, use your `/local/...` path instead.
+
+Also try:
+
+- hard-refreshing the browser
+- clearing the browser cache
+- removing duplicate or old resources for this strategy
+- downloading the repository again in HACS
+- restarting Home Assistant
+
 ## Configuration
 
 Basic example:
