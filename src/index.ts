@@ -42,6 +42,7 @@ type LovelaceCard = Record<string, unknown>;
 const STRATEGY_TYPE = "bubble-card-dashboard";
 const DASHBOARD_ELEMENT = "ll-strategy-dashboard-bubble-card-dashboard";
 const VIEW_ELEMENT = "ll-strategy-view-bubble-card-dashboard";
+const VERSION = "0.2.1";
 const DEFAULT_MAX_ENTITIES_PER_AREA = 24;
 const ROOMS_POPUP_HASH = "#rooms";
 
@@ -98,9 +99,9 @@ class BubbleDashboardStrategy extends HTMLElement {
       title: config.title || hass.config.location_name || "Bubble Card Dashboard",
       views: [
         {
-          title: "Home",
-          path: "home",
-          icon: "mdi:home",
+          title: "Dashboard",
+          path: "dashboard",
+          icon: "mdi:view-dashboard",
           strategy: {
             type: `custom:${STRATEGY_TYPE}`,
             view: "home",
@@ -451,7 +452,7 @@ function buildFooter(areas: HassArea[]): LovelaceCard {
     card_type: "horizontal-buttons-stack",
     "1_link": ROOMS_POPUP_HASH,
     "1_name": "Rooms",
-    "1_icon": "mdi:home",
+    "1_icon": "mdi:floor-plan",
     auto_order: false,
     highlight_current_view: true,
   };
@@ -540,7 +541,7 @@ if (!window.customStrategies.some((strategy) => strategy.type === STRATEGY_TYPE 
 }
 
 console.info(
-  "%cBUBBLE-CARD-DASHBOARD-STRATEGY%c 0.2.0",
+  `%cBUBBLE-CARD-DASHBOARD-STRATEGY%c ${VERSION}`,
   "color: white; background: #1d8cf8; font-weight: 700; padding: 2px 4px; border-radius: 3px;",
   "color: #1d8cf8; font-weight: 700;",
 );

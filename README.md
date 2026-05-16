@@ -166,6 +166,7 @@ The generated dashboard uses Bubble Card pop-ups:
 - `#rooms` opens the room overview
 - `#room-{room-name}` opens a generated room detail pop-up
 - room pop-ups contain a **Back to rooms** button
+- the footer's first button opens `#rooms`; it does not navigate to `/lovelace/home`
 - the horizontal button stack is placed as the last card in the view, as required by Bubble Card
 
 ## Development
