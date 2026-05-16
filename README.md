@@ -7,8 +7,9 @@ This project is built for people who want a clean Bubble Card dashboard without 
 ## Features
 
 - Automatic dashboard generation from Home Assistant areas
-- One overview page with room navigation
-- One generated view per area
+- One app-like Home view
+- Room overview pop-up
+- One generated pop-up per area
 - Bubble Card controls for lights, switches, covers, climate entities, media players, selects, scripts, scenes, and more
 - Footer navigation using Bubble Card's `horizontal-buttons-stack`
 - Optional entity and domain filtering
@@ -159,6 +160,13 @@ strategy:
 The strategy uses the Home Assistant area, device, and entity registries to build the dashboard. The overview page links to generated room views. Each room view contains Bubble Card controls for supported entities assigned to that area.
 
 Hidden and disabled entities are ignored automatically.
+
+The generated dashboard uses Bubble Card pop-ups:
+
+- `#rooms` opens the room overview
+- `#room-{room-name}` opens a generated room detail pop-up
+- room pop-ups contain a **Back to rooms** button
+- the horizontal button stack is placed as the last card in the view, as required by Bubble Card
 
 ## Development
 
