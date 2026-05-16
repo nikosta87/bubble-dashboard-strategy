@@ -2,8 +2,9 @@
 var STRATEGY_TYPE = "bubble-card-dashboard";
 var DASHBOARD_ELEMENT = "ll-strategy-dashboard-bubble-card-dashboard";
 var VIEW_ELEMENT = "ll-strategy-view-bubble-card-dashboard";
-var VERSION = "0.2.1";
+var VERSION = "0.3.0";
 var DEFAULT_MAX_ENTITIES_PER_AREA = 24;
+var DEFAULT_MEDIA_PLAYER_CARD = "bubble-card";
 var ROOMS_POPUP_HASH = "#rooms";
 var DOMAIN_CARD_TYPES = {
   alarm_control_panel: "button",
@@ -90,7 +91,7 @@ function buildHomeView(areas, entities, devices, hass, options) {
         type: "grid",
         square: false,
         columns: 2,
-        cards: buildOverviewCards(entities, hass)
+        cards: buildOverviewCards(entities, hass, options)
       },
       buildRoomsPopup(areas, entities, devices),
       ...areas.map((area) => buildRoomPopup(area, entities, devices, hass, options)),
@@ -98,7 +99,7 @@ function buildHomeView(areas, entities, devices, hass, options) {
     ]
   };
 }
-function buildOverviewCards(entities, hass) {
+function buildOverviewCards(entities, hass, options) {
   const weather = findFirstStateEntity(hass, ["weather"]);
   const mediaPlayer = findFirstStateEntity(hass, ["media_player"]);
   const climate = findFirstStateEntity(hass, ["climate"]);
@@ -113,11 +114,7 @@ function buildOverviewCards(entities, hass) {
       }
     ] : [],
     ...mediaPlayer ? [
-      {
-        type: "custom:bubble-card",
-        card_type: "media-player",
-        entity: mediaPlayer
-      }
+      mediaPlayerToCard(mediaPlayer, options)
     ] : [],
     ...climate ? [
       {
@@ -193,7 +190,7 @@ function buildRoomPopup(area, entities, devices, hass, options) {
       type: "grid",
       square: false,
       columns: group.columns,
-      cards: group.entities.map((entity) => entityToBubbleCard(entity))
+      cards: group.entities.map((entity) => entityToCard(entity, options))
     });
   });
   if (cards.length === 1) {
@@ -218,7 +215,7 @@ function buildRoomPopup(area, entities, devices, hass, options) {
   };
 }
 function buildAreaView(area, entities, devices, hass, options) {
-  const cards = getAreaEntities(area.area_id, entities, devices, hass, options).slice(0, options.max_entities_per_area ?? DEFAULT_MAX_ENTITIES_PER_AREA).map((entity) => entityToBubbleCard(entity));
+  const cards = getAreaEntities(area.area_id, entities, devices, hass, options).slice(0, options.max_entities_per_area ?? DEFAULT_MAX_ENTITIES_PER_AREA).map((entity) => entityToCard(entity, options));
   return {
     type: "sections",
     max_columns: 3,
@@ -291,6 +288,13 @@ function getAreaEntities(areaId, entities, devices, hass, options) {
   const ignoredDomains = /* @__PURE__ */ new Set([...options.ignored_domains ?? [], ...DEFAULT_IGNORED_DOMAINS]);
   return entities.filter((entity) => entityBelongsToArea(entity, areaId, devices)).filter((entity) => entity.entity_id in hass.states).filter((entity) => !entity.hidden_by && !entity.disabled_by).filter((entity) => !ignoredEntities.has(entity.entity_id)).filter((entity) => !ignoredDomains.has(getDomain(entity.entity_id))).filter((entity) => DOMAIN_CARD_TYPES[getDomain(entity.entity_id)]).sort((left, right) => getFriendlyName(left, hass).localeCompare(getFriendlyName(right, hass)));
 }
+function entityToCard(entity, options) {
+  const domain = getDomain(entity.entity_id);
+  if (domain === "media_player") {
+    return mediaPlayerToCard(entity.entity_id, options);
+  }
+  return entityToBubbleCard(entity);
+}
 function entityToBubbleCard(entity) {
   const domain = getDomain(entity.entity_id);
   const cardType = DOMAIN_CARD_TYPES[domain] || "button";
@@ -307,6 +311,42 @@ function entityToBubbleCard(entity) {
     card_type: cardType,
     entity: entity.entity_id
   };
+}
+function mediaPlayerToCard(entityId, options) {
+  switch (getMediaPlayerCardType(options)) {
+    case "mini-media-player":
+      return {
+        type: "custom:mini-media-player",
+        entity: entityId,
+        artwork: "full-cover",
+        info: "scroll",
+        idle_view: {
+          when_idle: true,
+          when_paused: true,
+          when_standby: true
+        }
+      };
+    case "yamp":
+      return {
+        type: "custom:yet-another-media-player",
+        entities: [entityId],
+        idle_screen: "search-recently-played",
+        artwork_object_fit: "cover"
+      };
+    case "bubble-card":
+    default:
+      return {
+        type: "custom:bubble-card",
+        card_type: "media-player",
+        entity: entityId
+      };
+  }
+}
+function getMediaPlayerCardType(options) {
+  if (["bubble-card", "mini-media-player", "yamp"].includes(options.media_player_card || "")) {
+    return options.media_player_card;
+  }
+  return DEFAULT_MEDIA_PLAYER_CARD;
 }
 function bubbleSeparator(name, icon) {
   return {

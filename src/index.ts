@@ -35,15 +35,18 @@ type StrategyConfig = {
   ignored_entities?: string[];
   ignored_domains?: string[];
   max_entities_per_area?: number;
+  media_player_card?: MediaPlayerCardType;
 };
 
+type MediaPlayerCardType = "bubble-card" | "mini-media-player" | "yamp";
 type LovelaceCard = Record<string, unknown>;
 
 const STRATEGY_TYPE = "bubble-card-dashboard";
 const DASHBOARD_ELEMENT = "ll-strategy-dashboard-bubble-card-dashboard";
 const VIEW_ELEMENT = "ll-strategy-view-bubble-card-dashboard";
-const VERSION = "0.2.1";
+const VERSION = "0.3.0";
 const DEFAULT_MAX_ENTITIES_PER_AREA = 24;
+const DEFAULT_MEDIA_PLAYER_CARD: MediaPlayerCardType = "bubble-card";
 const ROOMS_POPUP_HASH = "#rooms";
 
 const DOMAIN_CARD_TYPES: Record<string, string> = {
@@ -148,7 +151,7 @@ function buildHomeView(
         type: "grid",
         square: false,
         columns: 2,
-        cards: buildOverviewCards(entities, hass),
+        cards: buildOverviewCards(entities, hass, options),
       },
       buildRoomsPopup(areas, entities, devices),
       ...areas.map((area) => buildRoomPopup(area, entities, devices, hass, options)),
@@ -157,7 +160,7 @@ function buildHomeView(
   };
 }
 
-function buildOverviewCards(entities: HassEntity[], hass: HomeAssistant): LovelaceCard[] {
+function buildOverviewCards(entities: HassEntity[], hass: HomeAssistant, options: StrategyConfig): LovelaceCard[] {
   const weather = findFirstStateEntity(hass, ["weather"]);
   const mediaPlayer = findFirstStateEntity(hass, ["media_player"]);
   const climate = findFirstStateEntity(hass, ["climate"]);
@@ -176,11 +179,7 @@ function buildOverviewCards(entities: HassEntity[], hass: HomeAssistant): Lovela
       : []),
     ...(mediaPlayer
       ? [
-          {
-            type: "custom:bubble-card",
-            card_type: "media-player",
-            entity: mediaPlayer,
-          },
+          mediaPlayerToCard(mediaPlayer, options),
         ]
       : []),
     ...(climate
@@ -270,7 +269,7 @@ function buildRoomPopup(
       type: "grid",
       square: false,
       columns: group.columns,
-      cards: group.entities.map((entity) => entityToBubbleCard(entity)),
+      cards: group.entities.map((entity) => entityToCard(entity, options)),
     });
   });
 
@@ -306,7 +305,7 @@ function buildAreaView(
 ) {
   const cards = getAreaEntities(area.area_id, entities, devices, hass, options)
     .slice(0, options.max_entities_per_area ?? DEFAULT_MAX_ENTITIES_PER_AREA)
-    .map((entity) => entityToBubbleCard(entity));
+    .map((entity) => entityToCard(entity, options));
 
   return {
     type: "sections",
@@ -400,6 +399,16 @@ function getAreaEntities(
     .sort((left, right) => getFriendlyName(left, hass).localeCompare(getFriendlyName(right, hass)));
 }
 
+function entityToCard(entity: HassEntity, options: StrategyConfig): LovelaceCard {
+  const domain = getDomain(entity.entity_id);
+
+  if (domain === "media_player") {
+    return mediaPlayerToCard(entity.entity_id, options);
+  }
+
+  return entityToBubbleCard(entity);
+}
+
 function entityToBubbleCard(entity: HassEntity): LovelaceCard {
   const domain = getDomain(entity.entity_id);
   const cardType = DOMAIN_CARD_TYPES[domain] || "button";
@@ -418,6 +427,45 @@ function entityToBubbleCard(entity: HassEntity): LovelaceCard {
     card_type: cardType,
     entity: entity.entity_id,
   };
+}
+
+function mediaPlayerToCard(entityId: string, options: StrategyConfig): LovelaceCard {
+  switch (getMediaPlayerCardType(options)) {
+    case "mini-media-player":
+      return {
+        type: "custom:mini-media-player",
+        entity: entityId,
+        artwork: "full-cover",
+        info: "scroll",
+        idle_view: {
+          when_idle: true,
+          when_paused: true,
+          when_standby: true,
+        },
+      };
+    case "yamp":
+      return {
+        type: "custom:yet-another-media-player",
+        entities: [entityId],
+        idle_screen: "search-recently-played",
+        artwork_object_fit: "cover",
+      };
+    case "bubble-card":
+    default:
+      return {
+        type: "custom:bubble-card",
+        card_type: "media-player",
+        entity: entityId,
+      };
+  }
+}
+
+function getMediaPlayerCardType(options: StrategyConfig): MediaPlayerCardType {
+  if (["bubble-card", "mini-media-player", "yamp"].includes(options.media_player_card || "")) {
+    return options.media_player_card as MediaPlayerCardType;
+  }
+
+  return DEFAULT_MEDIA_PLAYER_CARD;
 }
 
 function bubbleSeparator(name: string, icon: string): LovelaceCard {

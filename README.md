@@ -139,6 +139,7 @@ Example with options:
 strategy:
   type: custom:bubble-card-dashboard
   title: My Home
+  media_player_card: bubble-card
   max_entities_per_area: 24
   ignored_domains:
     - sensor
@@ -151,9 +152,40 @@ strategy:
 | Option | Type | Default | Description |
 | --- | --- | --- | --- |
 | `title` | string | Home Assistant location name | Dashboard title |
+| `media_player_card` | string | `bubble-card` | Media player card type. Use `bubble-card`, `mini-media-player`, or `yamp` |
 | `max_entities_per_area` | number | `24` | Maximum number of generated entity cards per area |
 | `ignored_domains` | string[] | `[]` | Domains to exclude from generated room views |
 | `ignored_entities` | string[] | `[]` | Specific entities to exclude |
+
+### Media Player Cards
+
+By default, media players are generated as Bubble Card media-player cards:
+
+```yaml
+strategy:
+  type: custom:bubble-card-dashboard
+  media_player_card: bubble-card
+```
+
+You can use Mini Media Player instead:
+
+```yaml
+strategy:
+  type: custom:bubble-card-dashboard
+  media_player_card: mini-media-player
+```
+
+This requires [Mini Media Player](https://github.com/kalkih/mini-media-player) to be installed separately.
+
+You can also use Yet Another Media Player:
+
+```yaml
+strategy:
+  type: custom:bubble-card-dashboard
+  media_player_card: yamp
+```
+
+This requires [Yet Another Media Player](https://github.com/jianyu-li/yet-another-media-player) to be installed separately. The generated YAMP config uses its recently-played idle screen.
 
 ## How It Works
 
