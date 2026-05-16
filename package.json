@@ -1,0 +1,24 @@
+{
+  "name": "bubble-dashboard-strategy",
+  "version": "0.1.0",
+  "description": "A Home Assistant dashboard strategy that generates Bubble Card based dashboards.",
+  "type": "module",
+  "private": false,
+  "scripts": {
+    "build": "tsc --noEmit && esbuild src/index.ts --bundle --format=esm --target=es2022 --outfile=dist/bubble-dashboard-strategy.js",
+    "check": "tsc --noEmit"
+  },
+  "keywords": [
+    "home-assistant",
+    "lovelace",
+    "dashboard",
+    "strategy",
+    "bubble-card",
+    "hacs"
+  ],
+  "license": "MIT",
+  "devDependencies": {
+    "esbuild": "^0.25.0",
+    "typescript": "^5.8.0"
+  }
+}
