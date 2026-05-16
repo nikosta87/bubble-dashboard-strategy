@@ -1,55 +1,109 @@
 # Bubble Dashboard Strategy
 
-Eine Home-Assistant Dashboard Strategy, die automatisch ein bereichsbasiertes Dashboard mit [Bubble Card](https://github.com/Clooos/Bubble-Card) generiert.
+A Home Assistant dashboard strategy that automatically generates an area-based dashboard using [Bubble Card](https://github.com/Clooos/Bubble-Card).
 
-Der Startpunkt ist bewusst klein gehalten: Home-View, Raum-Views, Bubble-Buttons für steuerbare Entitäten und ein Footer über `horizontal-buttons-stack`.
+This project is built for people who want a clean Bubble Card dashboard without manually creating every room view, button, and navigation element. It reads your Home Assistant areas, devices, and entities, then creates a generated Lovelace dashboard from that structure.
 
-## Voraussetzungen
+## Features
 
-- Home Assistant mit Dashboard Strategies
-- Bubble Card installiert, am einfachsten über HACS
-- Bereiche und Geräte/Entitäten in Home Assistant gepflegt
+- Automatic dashboard generation from Home Assistant areas
+- One overview page with room navigation
+- One generated view per area
+- Bubble Card controls for lights, switches, covers, climate entities, media players, selects, scripts, scenes, and more
+- Footer navigation using Bubble Card's `horizontal-buttons-stack`
+- Optional entity and domain filtering
+- HACS custom repository support
 
-## Installation zum Testen
+## Requirements
 
-1. Projekt bauen:
+- Home Assistant with dashboard strategy support
+- [Bubble Card](https://github.com/Clooos/Bubble-Card) installed
+- Areas configured in Home Assistant
+- Devices and entities assigned to areas
 
-   ```bash
-   npm install
-   npm run build
+Bubble Card is required. This strategy generates `custom:bubble-card` cards, but it does not install Bubble Card for you.
+
+## Installation
+
+### HACS Custom Repository
+
+1. Open Home Assistant.
+2. Go to **HACS**.
+3. Open the three-dot menu and select **Custom repositories**.
+4. Add this repository:
+
+   ```text
+   https://github.com/nikosta87/bubble-dashboard-strategy
    ```
 
-2. `dist/bubble-dashboard-strategy.js` nach Home Assistant kopieren:
+5. Select **Dashboard** as the repository category.
+6. Download **Bubble Dashboard Strategy**.
+7. Reload Home Assistant or refresh your browser.
 
-   ```bash
-   cp dist/bubble-dashboard-strategy.js /config/www/bubble-dashboard-strategy.js
+After installation, HACS should add the dashboard resource automatically. If you need to add it manually, use:
+
+```text
+/hacsfiles/bubble-dashboard-strategy/bubble-dashboard-strategy.js
+```
+
+Resource type:
+
+```text
+JavaScript Module
+```
+
+### Manual Installation
+
+1. Download `bubble-dashboard-strategy.js` from the `dist/` folder.
+2. Copy it to your Home Assistant `www` folder, for example:
+
+   ```text
+   /config/www/bubble-dashboard-strategy/bubble-dashboard-strategy.js
    ```
 
-3. Resource in Home Assistant hinzufügen:
+3. Add the resource in Home Assistant:
 
    ```yaml
    lovelace:
      mode: storage
      resources:
-       - url: /local/bubble-dashboard-strategy.js
+       - url: /local/bubble-dashboard-strategy/bubble-dashboard-strategy.js
          type: module
    ```
 
-4. Neues Dashboard erstellen und im Raw-Konfigurationseditor eintragen:
+4. Restart Home Assistant or reload the frontend.
+
+## Create A Dashboard
+
+1. Go to **Settings** → **Dashboards**.
+2. Create a new dashboard.
+3. Open the dashboard.
+4. Enter edit mode.
+5. Open the three-dot menu and select **Raw configuration editor**.
+6. Add:
 
    ```yaml
    strategy:
      type: custom:bubble-dashboard
    ```
 
-## Konfiguration
+7. Save the dashboard.
 
-Optional:
+## Configuration
+
+Basic example:
 
 ```yaml
 strategy:
   type: custom:bubble-dashboard
-  title: Mein Zuhause
+```
+
+Example with options:
+
+```yaml
+strategy:
+  type: custom:bubble-dashboard
+  title: My Home
   max_entities_per_area: 24
   ignored_domains:
     - sensor
@@ -57,29 +111,52 @@ strategy:
     - light.unused_light
 ```
 
-## Veröffentlichung über GitHub
+### Options
 
-Für die private Phase:
+| Option | Type | Default | Description |
+| --- | --- | --- | --- |
+| `title` | string | Home Assistant location name | Dashboard title |
+| `max_entities_per_area` | number | `24` | Maximum number of generated entity cards per area |
+| `ignored_domains` | string[] | `[]` | Domains to exclude from generated room views |
+| `ignored_entities` | string[] | `[]` | Specific entities to exclude |
+
+## How It Works
+
+The strategy uses the Home Assistant area, device, and entity registries to build the dashboard. The overview page links to generated room views. Each room view contains Bubble Card controls for supported entities assigned to that area.
+
+Hidden and disabled entities are ignored automatically.
+
+## Development
+
+Install dependencies:
 
 ```bash
-git init
-git add .
-git commit -m "Initial Bubble Dashboard Strategy"
-gh repo create bubble-dashboard-strategy --private --source=. --remote=origin --push
+npm install
 ```
 
-Wenn die Strategy stabil läuft, kann das Repository auf öffentlich gestellt werden:
+Build the strategy:
 
 ```bash
-gh repo edit bubble-dashboard-strategy --visibility public
+npm run build
 ```
 
-Für HACS ist wichtig, dass im Repository unter `dist/` eine JavaScript-Datei liegt, die genauso heißt wie das Repository: `bubble-dashboard-strategy.js`.
+The compiled file is written to:
+
+```text
+dist/bubble-dashboard-strategy.js
+```
 
 ## Roadmap
 
-- Grafischer Strategy-Editor
-- Pop-ups pro Raum
-- bessere Domain-Gruppierung für Licht, Klima, Sicherheit und Medien
-- Label-basierte Filterung
-- Theme-Variablen für Bubble Card
+- Graphical strategy editor
+- Room pop-ups
+- Better domain grouping for lights, climate, security, media, and covers
+- Label-based filtering
+- Bubble Card theme variables
+- More customizable overview sections
+
+## Credits
+
+This project is inspired by the great work of the Home Assistant community and the dashboard strategy approach used by projects like [Simon42 Dashboard Strategy](https://github.com/TheRealSimon42/simon42-dashboard-strategy).
+
+Bubble Card is created and maintained by [Clooos](https://github.com/Clooos/Bubble-Card).
