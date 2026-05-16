@@ -3,7 +3,7 @@ var STRATEGY_TYPE = "bubble-card-dashboard";
 var DASHBOARD_ELEMENT = "ll-strategy-dashboard-bubble-card-dashboard";
 var VIEW_ELEMENT = "ll-strategy-view-bubble-card-dashboard";
 var EDITOR_ELEMENT = "bubble-card-dashboard-strategy-editor";
-var VERSION = "0.5.0";
+var VERSION = "0.6.0";
 var DEFAULT_MAX_ENTITIES_PER_AREA = 24;
 var DEFAULT_MEDIA_PLAYER_CARD = "bubble-card";
 var ROOMS_POPUP_HASH = "#rooms";
@@ -261,7 +261,7 @@ function buildHomeView(areas, entities, devices, hass, options) {
 }
 function buildOverviewCards(entities, hass, options) {
   const weather = findFirstStateEntity(hass, ["weather"]);
-  const mediaPlayer = findFirstStateEntity(hass, ["media_player"]);
+  const mediaPlayer = findLastUsedMediaPlayer(hass);
   const climate = findFirstStateEntity(hass, ["climate"]);
   const vacuums = findStateEntities(hass, ["vacuum"]).slice(0, 2);
   return [
@@ -563,6 +563,52 @@ function findStateEntities(hass, domains) {
 }
 function findFirstStateEntity(hass, domains) {
   return findStateEntities(hass, domains)[0];
+}
+function findLastUsedMediaPlayer(hass) {
+  const mediaPlayers = findStateEntities(hass, ["media_player"]);
+  return mediaPlayers.map((entityId) => ({
+    entityId,
+    score: getMediaPlayerScore(hass, entityId)
+  })).sort((left, right) => right.score - left.score || left.entityId.localeCompare(right.entityId))[0]?.entityId;
+}
+function getMediaPlayerScore(hass, entityId) {
+  const state = hass.states[entityId];
+  if (!state) {
+    return 0;
+  }
+  const stateRank = {
+    playing: 4,
+    paused: 3,
+    idle: 2,
+    standby: 1,
+    on: 1
+  };
+  const mediaMetadataBonus = hasMediaMetadata(state.attributes) ? 1e13 : 0;
+  const stateBonus = (stateRank[state.state] || 0) * 1e14;
+  const updatedAt = getMediaPlayerUpdatedAt(state);
+  return stateBonus + mediaMetadataBonus + updatedAt;
+}
+function hasMediaMetadata(attributes) {
+  return Boolean(
+    attributes.media_title || attributes.media_artist || attributes.media_album_name || attributes.entity_picture || attributes.app_name
+  );
+}
+function getMediaPlayerUpdatedAt(state) {
+  const candidates = [
+    state.attributes.media_position_updated_at,
+    state.last_updated,
+    state.last_changed
+  ];
+  for (const candidate of candidates) {
+    if (typeof candidate !== "string") {
+      continue;
+    }
+    const timestamp = Date.parse(candidate);
+    if (!Number.isNaN(timestamp)) {
+      return timestamp;
+    }
+  }
+  return 0;
 }
 function getRoomHash(area) {
   return `#room-${slugify(area.name || area.area_id)}`;

@@ -26,7 +26,16 @@ type HomeAssistant = {
   config: {
     location_name?: string;
   };
-  states: Record<string, { entity_id: string; state: string; attributes: Record<string, unknown> }>;
+  states: Record<
+    string,
+    {
+      entity_id: string;
+      state: string;
+      attributes: Record<string, unknown>;
+      last_changed?: string;
+      last_updated?: string;
+    }
+  >;
   callWS<T>(message: Record<string, unknown>): Promise<T>;
 };
 
@@ -45,7 +54,7 @@ const STRATEGY_TYPE = "bubble-card-dashboard";
 const DASHBOARD_ELEMENT = "ll-strategy-dashboard-bubble-card-dashboard";
 const VIEW_ELEMENT = "ll-strategy-view-bubble-card-dashboard";
 const EDITOR_ELEMENT = "bubble-card-dashboard-strategy-editor";
-const VERSION = "0.5.0";
+const VERSION = "0.6.0";
 const DEFAULT_MAX_ENTITIES_PER_AREA = 24;
 const DEFAULT_MEDIA_PLAYER_CARD: MediaPlayerCardType = "bubble-card";
 const ROOMS_POPUP_HASH = "#rooms";
@@ -339,7 +348,7 @@ function buildHomeView(
 
 function buildOverviewCards(entities: HassEntity[], hass: HomeAssistant, options: StrategyConfig): LovelaceCard[] {
   const weather = findFirstStateEntity(hass, ["weather"]);
-  const mediaPlayer = findFirstStateEntity(hass, ["media_player"]);
+  const mediaPlayer = findLastUsedMediaPlayer(hass);
   const climate = findFirstStateEntity(hass, ["climate"]);
   const vacuums = findStateEntities(hass, ["vacuum"]).slice(0, 2);
 
@@ -712,6 +721,70 @@ function findStateEntities(hass: HomeAssistant, domains: string[]) {
 
 function findFirstStateEntity(hass: HomeAssistant, domains: string[]) {
   return findStateEntities(hass, domains)[0];
+}
+
+function findLastUsedMediaPlayer(hass: HomeAssistant) {
+  const mediaPlayers = findStateEntities(hass, ["media_player"]);
+
+  return mediaPlayers
+    .map((entityId) => ({
+      entityId,
+      score: getMediaPlayerScore(hass, entityId),
+    }))
+    .sort((left, right) => right.score - left.score || left.entityId.localeCompare(right.entityId))[0]?.entityId;
+}
+
+function getMediaPlayerScore(hass: HomeAssistant, entityId: string) {
+  const state = hass.states[entityId];
+
+  if (!state) {
+    return 0;
+  }
+
+  const stateRank: Record<string, number> = {
+    playing: 4,
+    paused: 3,
+    idle: 2,
+    standby: 1,
+    on: 1,
+  };
+  const mediaMetadataBonus = hasMediaMetadata(state.attributes) ? 10_000_000_000_000 : 0;
+  const stateBonus = (stateRank[state.state] || 0) * 100_000_000_000_000;
+  const updatedAt = getMediaPlayerUpdatedAt(state);
+
+  return stateBonus + mediaMetadataBonus + updatedAt;
+}
+
+function hasMediaMetadata(attributes: Record<string, unknown>) {
+  return Boolean(
+    attributes.media_title ||
+      attributes.media_artist ||
+      attributes.media_album_name ||
+      attributes.entity_picture ||
+      attributes.app_name,
+  );
+}
+
+function getMediaPlayerUpdatedAt(state: HomeAssistant["states"][string]) {
+  const candidates = [
+    state.attributes.media_position_updated_at,
+    state.last_updated,
+    state.last_changed,
+  ];
+
+  for (const candidate of candidates) {
+    if (typeof candidate !== "string") {
+      continue;
+    }
+
+    const timestamp = Date.parse(candidate);
+
+    if (!Number.isNaN(timestamp)) {
+      return timestamp;
+    }
+  }
+
+  return 0;
 }
 
 function getRoomHash(area: HassArea) {

@@ -169,6 +169,8 @@ Open the dashboard, click the edit pencil, then open the dashboard edit dialog. 
 
 ### Media Player Cards
 
+The Home overview media card automatically chooses the best media player to show. It prefers currently playing players, then paused players, then the most recently updated media player with media metadata or artwork.
+
 By default, media players are generated as Bubble Card media-player cards:
 
 ```yaml
