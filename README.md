@@ -8,6 +8,7 @@ This project is built for people who want a clean Bubble Card dashboard without 
 
 - Automatic dashboard generation from Home Assistant areas
 - One app-like Home view
+- Top navigation bar using Bubble Card's `horizontal-buttons-stack`
 - Room overview pop-up
 - One generated pop-up per area
 - Bubble Card controls for lights, switches, covers, climate entities, media players, selects, scripts, scenes, and more
@@ -19,6 +20,7 @@ This project is built for people who want a clean Bubble Card dashboard without 
 
 - Home Assistant with dashboard strategy support
 - [Bubble Card](https://github.com/Clooos/Bubble-Card) installed
+- [card-mod](https://github.com/thomasloven/lovelace-card-mod) installed if you want all Home overview cards to use the same fixed height
 - Areas configured in Home Assistant
 - Devices and entities assigned to areas
 

@@ -3,7 +3,7 @@ var STRATEGY_TYPE = "bubble-card-dashboard";
 var DASHBOARD_ELEMENT = "ll-strategy-dashboard-bubble-card-dashboard";
 var VIEW_ELEMENT = "ll-strategy-view-bubble-card-dashboard";
 var EDITOR_ELEMENT = "bubble-card-dashboard-strategy-editor";
-var VERSION = "0.6.0";
+var VERSION = "0.7.0";
 var DEFAULT_MAX_ENTITIES_PER_AREA = 24;
 var DEFAULT_MEDIA_PLAYER_CARD = "bubble-card";
 var ROOMS_POPUP_HASH = "#rooms";
@@ -245,17 +245,24 @@ var BubbleCardDashboardStrategyEditor = class extends HTMLElement {
 };
 function buildHomeView(areas, entities, devices, hass, options) {
   return {
-    type: "masonry",
-    cards: [
+    type: "sections",
+    max_columns: 2,
+    sections: [
       {
         type: "grid",
-        square: false,
-        columns: 2,
-        cards: buildOverviewCards(entities, hass, options)
-      },
-      buildRoomsPopup(areas, entities, devices),
-      ...areas.map((area) => buildRoomPopup(area, entities, devices, hass, options)),
-      buildFooter(areas)
+        cards: [
+          buildTopNavigation(),
+          {
+            type: "grid",
+            square: false,
+            columns: 2,
+            cards: buildOverviewCards(entities, hass, options)
+          },
+          buildRoomsPopup(areas, entities, devices),
+          ...areas.map((area) => buildRoomPopup(area, entities, devices, hass, options)),
+          buildFooter(areas)
+        ]
+      }
     ]
   };
 }
@@ -265,43 +272,44 @@ function buildOverviewCards(entities, hass, options) {
   const climate = findFirstStateEntity(hass, ["climate"]);
   const vacuums = findStateEntities(hass, ["vacuum"]).slice(0, 2);
   return [
-    buttonToHash("Rooms", "mdi:floor-plan", ROOMS_POPUP_HASH),
     ...weather ? [
-      {
+      fixedHomeCard({
         type: "weather-forecast",
         entity: weather,
         forecast_type: "daily"
-      }
+      })
     ] : [],
     ...mediaPlayer ? [
-      mediaPlayerToCard(mediaPlayer, options)
+      fixedHomeCard(mediaPlayerToCard(mediaPlayer, options))
     ] : [],
     ...climate ? [
-      {
+      fixedHomeCard({
         type: "custom:bubble-card",
         card_type: "climate",
         entity: climate
-      }
+      })
     ] : [],
-    ...vacuums.map((entity) => ({
-      type: "custom:bubble-card",
-      card_type: "button",
-      button_type: "state",
-      entity,
-      sub_button: [
-        {
-          entity,
-          icon: "mdi:play",
-          tap_action: {
-            action: "call-service",
-            service: "vacuum.start",
-            target: {
-              entity_id: entity
+    ...vacuums.map(
+      (entity) => fixedHomeCard({
+        type: "custom:bubble-card",
+        card_type: "button",
+        button_type: "state",
+        entity,
+        sub_button: [
+          {
+            entity,
+            icon: "mdi:play",
+            tap_action: {
+              action: "call-service",
+              service: "vacuum.start",
+              target: {
+                entity_id: entity
+              }
             }
           }
-        }
-      ]
-    }))
+        ]
+      })
+    )
   ];
 }
 function buildRoomsPopup(areas, entities, devices) {
@@ -515,6 +523,41 @@ function normalizeMediaPlayerCardType(value) {
     return normalizedValue;
   }
   return void 0;
+}
+function buildTopNavigation() {
+  return {
+    type: "custom:bubble-card",
+    card_type: "horizontal-buttons-stack",
+    "1_link": ROOMS_POPUP_HASH,
+    "1_name": "Home",
+    "1_icon": "mdi:home",
+    "2_link": "#cameras",
+    "2_name": "Cameras",
+    "2_icon": "mdi:video",
+    "3_link": "#alerts",
+    "3_name": "Alerts",
+    "3_icon": "mdi:alert-circle-outline",
+    "4_link": "/config/dashboard",
+    "4_name": "Settings",
+    "4_icon": "mdi:cog",
+    auto_order: false,
+    highlight_current_view: true
+  };
+}
+function fixedHomeCard(card) {
+  return {
+    ...card,
+    card_mod: {
+      style: `
+        ha-card {
+          height: 190px;
+          min-height: 190px;
+          max-height: 190px;
+          overflow: hidden;
+        }
+      `
+    }
+  };
 }
 function bubbleSeparator(name, icon) {
   return {
