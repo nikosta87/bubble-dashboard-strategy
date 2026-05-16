@@ -8,11 +8,10 @@ This project is built for people who want a clean Bubble Card dashboard without 
 
 - Automatic dashboard generation from Home Assistant areas
 - One app-like Home view
-- Top navigation bar using Bubble Card's `horizontal-buttons-stack`
+- Top navigation bar using compact Bubble Card buttons
 - Room overview pop-up
 - One generated pop-up per area
 - Bubble Card controls for lights, switches, covers, climate entities, media players, selects, scripts, scenes, and more
-- Footer navigation using Bubble Card's `horizontal-buttons-stack`
 - Optional entity and domain filtering
 - HACS custom repository support
 

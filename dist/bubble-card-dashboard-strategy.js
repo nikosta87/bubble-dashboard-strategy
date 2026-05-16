@@ -3,7 +3,7 @@ var STRATEGY_TYPE = "bubble-card-dashboard";
 var DASHBOARD_ELEMENT = "ll-strategy-dashboard-bubble-card-dashboard";
 var VIEW_ELEMENT = "ll-strategy-view-bubble-card-dashboard";
 var EDITOR_ELEMENT = "bubble-card-dashboard-strategy-editor";
-var VERSION = "0.7.0";
+var VERSION = "0.7.1";
 var DEFAULT_MAX_ENTITIES_PER_AREA = 24;
 var DEFAULT_MEDIA_PLAYER_CARD = "bubble-card";
 var ROOMS_POPUP_HASH = "#rooms";
@@ -259,8 +259,7 @@ function buildHomeView(areas, entities, devices, hass, options) {
             cards: buildOverviewCards(entities, hass, options)
           },
           buildRoomsPopup(areas, entities, devices),
-          ...areas.map((area) => buildRoomPopup(area, entities, devices, hass, options)),
-          buildFooter(areas)
+          ...areas.map((area) => buildRoomPopup(area, entities, devices, hass, options))
         ]
       }
     ]
@@ -526,22 +525,48 @@ function normalizeMediaPlayerCardType(value) {
 }
 function buildTopNavigation() {
   return {
+    type: "grid",
+    square: false,
+    columns: 4,
+    cards: [
+      topNavButton("Home", "mdi:home", ROOMS_POPUP_HASH),
+      topNavButton("Cameras", "mdi:video", "#cameras"),
+      topNavButton("Alerts", "mdi:alert-circle-outline", "#alerts"),
+      topNavButton("Settings", "mdi:cog", "/config/dashboard")
+    ]
+  };
+}
+function topNavButton(name, icon, navigationPath) {
+  return {
     type: "custom:bubble-card",
-    card_type: "horizontal-buttons-stack",
-    "1_link": ROOMS_POPUP_HASH,
-    "1_name": "Home",
-    "1_icon": "mdi:home",
-    "2_link": "#cameras",
-    "2_name": "Cameras",
-    "2_icon": "mdi:video",
-    "3_link": "#alerts",
-    "3_name": "Alerts",
-    "3_icon": "mdi:alert-circle-outline",
-    "4_link": "/config/dashboard",
-    "4_name": "Settings",
-    "4_icon": "mdi:cog",
-    auto_order: false,
-    highlight_current_view: true
+    card_type: "button",
+    button_type: "name",
+    name,
+    icon,
+    button_action: {
+      tap_action: {
+        action: "navigate",
+        navigation_path: navigationPath
+      }
+    },
+    card_mod: {
+      style: `
+        ha-card {
+          height: 44px;
+          min-height: 44px;
+          border-radius: 999px;
+          background: rgba(255, 255, 255, 0.08);
+          backdrop-filter: blur(16px);
+          box-shadow: none;
+        }
+
+        .bubble-button-card-container {
+          min-height: 44px !important;
+          height: 44px !important;
+          border-radius: 999px !important;
+        }
+      `
+    }
   };
 }
 function fixedHomeCard(card) {
