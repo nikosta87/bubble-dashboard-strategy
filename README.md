@@ -1,4 +1,4 @@
-# Bubble Dashboard Strategy
+# Bubble Card Dashboard Strategy
 
 A Home Assistant dashboard strategy that automatically generates an area-based dashboard using [Bubble Card](https://github.com/Clooos/Bubble-Card).
 
@@ -33,17 +33,17 @@ Bubble Card is required. This strategy generates `custom:bubble-card` cards, but
 4. Add this repository:
 
    ```text
-   https://github.com/nikosta87/bubble-dashboard-strategy
+   https://github.com/nikosta87/bubble-card-dashboard-strategy
    ```
 
 5. Select **Dashboard** as the repository category.
-6. Download **Bubble Dashboard Strategy**.
+6. Download **Bubble Card Dashboard Strategy**.
 7. Reload Home Assistant or refresh your browser.
 
 After installation, HACS should add the dashboard resource automatically. If you need to add it manually, use:
 
 ```text
-/hacsfiles/bubble-dashboard-strategy/bubble-dashboard-strategy.js
+/hacsfiles/bubble-card-dashboard-strategy/bubble-card-dashboard-strategy.js
 ```
 
 Resource type:
@@ -54,11 +54,11 @@ JavaScript Module
 
 ### Manual Installation
 
-1. Download `bubble-dashboard-strategy.js` from the `dist/` folder.
+1. Download `bubble-card-dashboard-strategy.js` from the `dist/` folder.
 2. Copy it to your Home Assistant `www` folder, for example:
 
    ```text
-   /config/www/bubble-dashboard-strategy/bubble-dashboard-strategy.js
+   /config/www/bubble-card-dashboard-strategy/bubble-card-dashboard-strategy.js
    ```
 
 3. Add the resource in Home Assistant:
@@ -67,7 +67,7 @@ JavaScript Module
    lovelace:
      mode: storage
      resources:
-       - url: /local/bubble-dashboard-strategy/bubble-dashboard-strategy.js
+       - url: /local/bubble-card-dashboard-strategy/bubble-card-dashboard-strategy.js
          type: module
    ```
 
@@ -84,7 +84,7 @@ JavaScript Module
 
    ```yaml
    strategy:
-     type: custom:bubble-dashboard
+     type: custom:bubble-card-dashboard
    ```
 
 7. Save the dashboard.
@@ -96,7 +96,7 @@ JavaScript Module
 If Home Assistant shows this error:
 
 ```text
-Timeout waiting for strategy element ll-strategy-dashboard-bubble-dashboard to be registered
+Timeout waiting for strategy element ll-strategy-dashboard-bubble-card-dashboard to be registered
 ```
 
 the JavaScript resource was not loaded correctly.
@@ -104,7 +104,7 @@ the JavaScript resource was not loaded correctly.
 Check **Settings** → **Dashboards** → three-dot menu → **Resources** and make sure this resource exists:
 
 ```text
-/hacsfiles/bubble-dashboard-strategy/bubble-dashboard-strategy.js
+/hacsfiles/bubble-card-dashboard-strategy/bubble-card-dashboard-strategy.js
 ```
 
 The resource type must be:
@@ -129,14 +129,14 @@ Basic example:
 
 ```yaml
 strategy:
-  type: custom:bubble-dashboard
+  type: custom:bubble-card-dashboard
 ```
 
 Example with options:
 
 ```yaml
 strategy:
-  type: custom:bubble-dashboard
+  type: custom:bubble-card-dashboard
   title: My Home
   max_entities_per_area: 24
   ignored_domains:
@@ -177,7 +177,7 @@ npm run build
 The compiled file is written to:
 
 ```text
-dist/bubble-dashboard-strategy.js
+dist/bubble-card-dashboard-strategy.js
 ```
 
 ## Roadmap

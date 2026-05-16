@@ -1,7 +1,7 @@
 // src/index.ts
-var STRATEGY_TYPE = "bubble-dashboard";
-var DASHBOARD_ELEMENT = "ll-strategy-dashboard-bubble-dashboard";
-var VIEW_ELEMENT = "ll-strategy-view-bubble-dashboard";
+var STRATEGY_TYPE = "bubble-card-dashboard";
+var DASHBOARD_ELEMENT = "ll-strategy-dashboard-bubble-card-dashboard";
+var VIEW_ELEMENT = "ll-strategy-view-bubble-card-dashboard";
 var DEFAULT_MAX_ENTITIES_PER_AREA = 24;
 var DOMAIN_CARD_TYPES = {
   alarm_control_panel: "button",
@@ -34,7 +34,7 @@ var DEFAULT_IGNORED_DOMAINS = /* @__PURE__ */ new Set([
 var BubbleDashboardStrategy = class extends HTMLElement {
   static getCreateSuggestions(_hass) {
     return {
-      title: "Bubble Dashboard",
+      title: "Bubble Card Dashboard",
       icon: "mdi:home-variant"
     };
   }
@@ -46,7 +46,7 @@ var BubbleDashboardStrategy = class extends HTMLElement {
     ]);
     const activeAreas = areas.filter((area) => entities.some((entity) => entityBelongsToArea(entity, area.area_id, devices))).sort((left, right) => left.name.localeCompare(right.name));
     return {
-      title: config.title || hass.config.location_name || "Bubble Dashboard",
+      title: config.title || hass.config.location_name || "Bubble Card Dashboard",
       views: [
         {
           title: "Home",
@@ -234,13 +234,13 @@ if (!window.customStrategies.some((strategy) => strategy.type === STRATEGY_TYPE 
   window.customStrategies.push({
     type: STRATEGY_TYPE,
     strategyType: "dashboard",
-    name: "Bubble Dashboard",
+    name: "Bubble Card Dashboard",
     description: "Generates an area-based dashboard with Bubble Card controls.",
-    documentationURL: "https://github.com/nikosta87/bubble-dashboard-strategy"
+    documentationURL: "https://github.com/nikosta87/bubble-card-dashboard-strategy"
   });
 }
 console.info(
-  "%cBUBBLE-DASHBOARD-STRATEGY%c 0.1.0",
+  "%cBUBBLE-CARD-DASHBOARD-STRATEGY%c 0.1.0",
   "color: white; background: #1d8cf8; font-weight: 700; padding: 2px 4px; border-radius: 3px;",
   "color: #1d8cf8; font-weight: 700;"
 );

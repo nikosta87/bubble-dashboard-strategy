@@ -39,9 +39,9 @@ type StrategyConfig = {
 
 type LovelaceCard = Record<string, unknown>;
 
-const STRATEGY_TYPE = "bubble-dashboard";
-const DASHBOARD_ELEMENT = "ll-strategy-dashboard-bubble-dashboard";
-const VIEW_ELEMENT = "ll-strategy-view-bubble-dashboard";
+const STRATEGY_TYPE = "bubble-card-dashboard";
+const DASHBOARD_ELEMENT = "ll-strategy-dashboard-bubble-card-dashboard";
+const VIEW_ELEMENT = "ll-strategy-view-bubble-card-dashboard";
 const DEFAULT_MAX_ENTITIES_PER_AREA = 24;
 
 const DOMAIN_CARD_TYPES: Record<string, string> = {
@@ -77,7 +77,7 @@ const DEFAULT_IGNORED_DOMAINS = new Set([
 class BubbleDashboardStrategy extends HTMLElement {
   static getCreateSuggestions(_hass: HomeAssistant) {
     return {
-      title: "Bubble Dashboard",
+      title: "Bubble Card Dashboard",
       icon: "mdi:home-variant",
     };
   }
@@ -94,7 +94,7 @@ class BubbleDashboardStrategy extends HTMLElement {
       .sort((left, right) => left.name.localeCompare(right.name));
 
     return {
-      title: config.title || hass.config.location_name || "Bubble Dashboard",
+      title: config.title || hass.config.location_name || "Bubble Card Dashboard",
       views: [
         {
           title: "Home",
@@ -339,14 +339,14 @@ if (!window.customStrategies.some((strategy) => strategy.type === STRATEGY_TYPE 
   window.customStrategies.push({
     type: STRATEGY_TYPE,
     strategyType: "dashboard",
-    name: "Bubble Dashboard",
+    name: "Bubble Card Dashboard",
     description: "Generates an area-based dashboard with Bubble Card controls.",
-    documentationURL: "https://github.com/nikosta87/bubble-dashboard-strategy",
+    documentationURL: "https://github.com/nikosta87/bubble-card-dashboard-strategy",
   });
 }
 
 console.info(
-  "%cBUBBLE-DASHBOARD-STRATEGY%c 0.1.0",
+  "%cBUBBLE-CARD-DASHBOARD-STRATEGY%c 0.1.0",
   "color: white; background: #1d8cf8; font-weight: 700; padding: 2px 4px; border-radius: 3px;",
   "color: #1d8cf8; font-weight: 700;",
 );
