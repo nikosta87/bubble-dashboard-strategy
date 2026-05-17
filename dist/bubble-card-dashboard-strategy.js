@@ -3,7 +3,7 @@ var STRATEGY_TYPE = "bubble-card-dashboard";
 var DASHBOARD_ELEMENT = "ll-strategy-dashboard-bubble-card-dashboard";
 var VIEW_ELEMENT = "ll-strategy-view-bubble-card-dashboard";
 var EDITOR_ELEMENT = "bubble-card-dashboard-strategy-editor";
-var VERSION = "0.10.0";
+var VERSION = "0.11.0";
 var DEFAULT_MAX_ENTITIES_PER_AREA = 24;
 var DEFAULT_MEDIA_PLAYER_CARD = "bubble-card";
 var DEFAULT_SHOW_CAMERA_BUTTON = true;
@@ -546,12 +546,22 @@ function normalizeMediaPlayerCardType(value) {
 }
 function buildTopNavigation(hass, options) {
   const showCameraButton = options.show_camera_button ?? DEFAULT_SHOW_CAMERA_BUTTON;
-  const group = [
-    profileSubButton(hass, options),
-    navigationSubButton("Home", "mdi:home", ROOMS_POPUP_HASH),
-    ...showCameraButton ? [navigationSubButton("Cameras", "mdi:video", "#cameras")] : [],
-    navigationSubButton("", "mdi:cog", "/config/dashboard")
-  ];
+  return {
+    type: "horizontal-stack",
+    cards: [
+      subButtonBar([profileSubButton(hass, options)], "flex-start"),
+      subButtonBar(
+        [
+          navigationSubButton("Home", "mdi:home", ROOMS_POPUP_HASH),
+          ...showCameraButton ? [navigationSubButton("Cameras", "mdi:video", "#cameras")] : []
+        ],
+        "center"
+      ),
+      subButtonBar([navigationSubButton("", "mdi:cog", "/config/dashboard")], "flex-end")
+    ]
+  };
+}
+function subButtonBar(group, justifyContent) {
   return {
     type: "custom:bubble-card",
     card_type: "sub-buttons",
@@ -561,9 +571,8 @@ function buildTopNavigation(hass, options) {
       main: [],
       bottom: [
         {
-          name: "Navigation",
           buttons_layout: "inline",
-          justify_content: "center",
+          justify_content: justifyContent,
           group
         }
       ]

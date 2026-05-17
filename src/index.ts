@@ -59,7 +59,7 @@ const STRATEGY_TYPE = "bubble-card-dashboard";
 const DASHBOARD_ELEMENT = "ll-strategy-dashboard-bubble-card-dashboard";
 const VIEW_ELEMENT = "ll-strategy-view-bubble-card-dashboard";
 const EDITOR_ELEMENT = "bubble-card-dashboard-strategy-editor";
-const VERSION = "0.10.0";
+const VERSION = "0.11.0";
 const DEFAULT_MAX_ENTITIES_PER_AREA = 24;
 const DEFAULT_MEDIA_PLAYER_CARD: MediaPlayerCardType = "bubble-card";
 const DEFAULT_SHOW_CAMERA_BUTTON = true;
@@ -702,13 +702,24 @@ function normalizeMediaPlayerCardType(value?: string): MediaPlayerCardType | und
 
 function buildTopNavigation(hass: HomeAssistant, options: StrategyConfig): LovelaceCard {
   const showCameraButton = options.show_camera_button ?? DEFAULT_SHOW_CAMERA_BUTTON;
-  const group: LovelaceCard[] = [
-    profileSubButton(hass, options),
-    navigationSubButton("Home", "mdi:home", ROOMS_POPUP_HASH),
-    ...(showCameraButton ? [navigationSubButton("Cameras", "mdi:video", "#cameras")] : []),
-    navigationSubButton("", "mdi:cog", "/config/dashboard"),
-  ];
 
+  return {
+    type: "horizontal-stack",
+    cards: [
+      subButtonBar([profileSubButton(hass, options)], "flex-start"),
+      subButtonBar(
+        [
+          navigationSubButton("Home", "mdi:home", ROOMS_POPUP_HASH),
+          ...(showCameraButton ? [navigationSubButton("Cameras", "mdi:video", "#cameras")] : []),
+        ],
+        "center",
+      ),
+      subButtonBar([navigationSubButton("", "mdi:cog", "/config/dashboard")], "flex-end"),
+    ],
+  };
+}
+
+function subButtonBar(group: LovelaceCard[], justifyContent: "flex-start" | "center" | "flex-end"): LovelaceCard {
   return {
     type: "custom:bubble-card",
     card_type: "sub-buttons",
@@ -718,9 +729,8 @@ function buildTopNavigation(hass: HomeAssistant, options: StrategyConfig): Lovel
       main: [],
       bottom: [
         {
-          name: "Navigation",
           buttons_layout: "inline",
-          justify_content: "center",
+          justify_content: justifyContent,
           group,
         },
       ],
