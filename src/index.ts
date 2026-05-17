@@ -59,7 +59,7 @@ const STRATEGY_TYPE = "bubble-card-dashboard";
 const DASHBOARD_ELEMENT = "ll-strategy-dashboard-bubble-card-dashboard";
 const VIEW_ELEMENT = "ll-strategy-view-bubble-card-dashboard";
 const EDITOR_ELEMENT = "bubble-card-dashboard-strategy-editor";
-const VERSION = "0.11.0";
+const VERSION = "0.11.1";
 const DEFAULT_MAX_ENTITIES_PER_AREA = 24;
 const DEFAULT_MEDIA_PLAYER_CARD: MediaPlayerCardType = "bubble-card";
 const DEFAULT_SHOW_CAMERA_BUTTON = true;
@@ -706,10 +706,15 @@ function buildTopNavigation(hass: HomeAssistant, options: StrategyConfig): Lovel
   return {
     type: "horizontal-stack",
     cards: [
-      subButtonBar([profileSubButton(hass, options)], "flex-start"),
       subButtonBar(
         [
+          profileSubButton(hass, options),
           navigationSubButton("Home", "mdi:home", ROOMS_POPUP_HASH),
+        ],
+        "flex-start",
+      ),
+      subButtonBar(
+        [
           ...(showCameraButton ? [navigationSubButton("Cameras", "mdi:video", "#cameras")] : []),
         ],
         "center",

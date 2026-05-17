@@ -3,7 +3,7 @@ var STRATEGY_TYPE = "bubble-card-dashboard";
 var DASHBOARD_ELEMENT = "ll-strategy-dashboard-bubble-card-dashboard";
 var VIEW_ELEMENT = "ll-strategy-view-bubble-card-dashboard";
 var EDITOR_ELEMENT = "bubble-card-dashboard-strategy-editor";
-var VERSION = "0.11.0";
+var VERSION = "0.11.1";
 var DEFAULT_MAX_ENTITIES_PER_AREA = 24;
 var DEFAULT_MEDIA_PLAYER_CARD = "bubble-card";
 var DEFAULT_SHOW_CAMERA_BUTTON = true;
@@ -549,10 +549,15 @@ function buildTopNavigation(hass, options) {
   return {
     type: "horizontal-stack",
     cards: [
-      subButtonBar([profileSubButton(hass, options)], "flex-start"),
       subButtonBar(
         [
-          navigationSubButton("Home", "mdi:home", ROOMS_POPUP_HASH),
+          profileSubButton(hass, options),
+          navigationSubButton("Home", "mdi:home", ROOMS_POPUP_HASH)
+        ],
+        "flex-start"
+      ),
+      subButtonBar(
+        [
           ...showCameraButton ? [navigationSubButton("Cameras", "mdi:video", "#cameras")] : []
         ],
         "center"
