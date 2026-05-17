@@ -44,6 +44,7 @@ type HomeAssistant = {
 
 type StrategyConfig = {
   title?: string;
+  profile_image?: string;
   ignored_entities?: string[];
   ignored_domains?: string[];
   max_entities_per_area?: number;
@@ -58,7 +59,8 @@ const STRATEGY_TYPE = "bubble-card-dashboard";
 const DASHBOARD_ELEMENT = "ll-strategy-dashboard-bubble-card-dashboard";
 const VIEW_ELEMENT = "ll-strategy-view-bubble-card-dashboard";
 const EDITOR_ELEMENT = "bubble-card-dashboard-strategy-editor";
-const VERSION = "0.8.0";
+const TOP_NAV_ELEMENT = "bubble-card-dashboard-top-nav";
+const VERSION = "0.9.0";
 const DEFAULT_MAX_ENTITIES_PER_AREA = 24;
 const DEFAULT_MEDIA_PLAYER_CARD: MediaPlayerCardType = "bubble-card";
 const DEFAULT_SHOW_CAMERA_BUTTON = true;
@@ -261,6 +263,11 @@ class BubbleCardDashboardStrategyEditor extends HTMLElement {
           <input id="show_camera_button" data-field="show_camera_button" type="checkbox" ${showCameraButton ? "checked" : ""}>
           <div class="hint">Shows or hides the camera icon in the top navigation.</div>
         </div>
+        <div class="field">
+          <label for="profile_image">Profile image</label>
+          <input id="profile_image" data-field="profile_image" type="text" value="${escapeHtml(this._config.profile_image || "")}" placeholder="/local/profile.jpg">
+          <div class="hint">Optional image URL for the round avatar. Leave empty to show the current user's initial.</div>
+        </div>
       </div>
 
       <div class="section">
@@ -295,7 +302,7 @@ class BubbleCardDashboardStrategyEditor extends HTMLElement {
   private handleInput(event: Event) {
     const target = event.target as HTMLInputElement | HTMLSelectElement;
 
-    if (target.dataset.field === "title") {
+    if (target.dataset.field === "title" || target.dataset.field === "profile_image") {
       this.updateConfig(target.dataset.field, target.value || undefined);
     }
   }
@@ -341,6 +348,140 @@ class BubbleCardDashboardStrategyEditor extends HTMLElement {
         composed: true,
       }),
     );
+  }
+}
+
+class BubbleCardDashboardTopNav extends HTMLElement {
+  private _config: Record<string, unknown> = {};
+
+  setConfig(config: Record<string, unknown>) {
+    this._config = config;
+    this.render();
+  }
+
+  connectedCallback() {
+    this.render();
+  }
+
+  private render() {
+    const showCameraButton = this._config.show_camera_button !== false;
+    const profileImage = typeof this._config.profile_image === "string" ? this._config.profile_image : "";
+    const userInitial = typeof this._config.user_initial === "string" ? this._config.user_initial : "?";
+
+    this.innerHTML = `
+      <style>
+        ha-card {
+          background: transparent;
+          box-shadow: none;
+          padding: 0;
+        }
+
+        .top-nav {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 10px;
+          width: 100%;
+          min-height: 48px;
+        }
+
+        .avatar,
+        .nav-pill,
+        .nav-icon {
+          height: 44px;
+          border: 0;
+          border-radius: 999px;
+          background: rgba(255, 255, 255, 0.08);
+          color: var(--primary-text-color);
+          backdrop-filter: blur(16px);
+          -webkit-backdrop-filter: blur(16px);
+          box-shadow: none;
+          cursor: pointer;
+          text-decoration: none;
+        }
+
+        .avatar {
+          width: 44px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          overflow: hidden;
+          background: rgba(255, 255, 255, 0.12);
+          font-weight: 700;
+        }
+
+        .avatar img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+          display: block;
+        }
+
+        .nav-pill {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          min-width: 128px;
+          padding: 0 18px;
+          font: inherit;
+          font-weight: 600;
+        }
+
+        .nav-icon {
+          width: 44px;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+        }
+
+        .nav-pill:hover,
+        .nav-icon:hover {
+          background: rgba(255, 255, 255, 0.13);
+        }
+
+        ha-icon {
+          --mdc-icon-size: 20px;
+        }
+
+        @media (max-width: 520px) {
+          .top-nav {
+            gap: 8px;
+          }
+
+          .nav-pill {
+            min-width: 96px;
+            padding: 0 12px;
+          }
+        }
+      </style>
+      <ha-card>
+        <div class="top-nav">
+          <button class="avatar" type="button" aria-label="Profile">
+            ${profileImage ? `<img src="${escapeHtml(profileImage)}" alt="Profile">` : escapeHtml(userInitial)}
+          </button>
+          <button class="nav-pill" type="button" data-path="${ROOMS_POPUP_HASH}">
+            <ha-icon icon="mdi:home"></ha-icon>
+            <span>Home</span>
+          </button>
+          ${
+            showCameraButton
+              ? `<button class="nav-pill" type="button" data-path="#cameras">
+                  <ha-icon icon="mdi:video"></ha-icon>
+                  <span>Cameras</span>
+                </button>`
+              : ""
+          }
+          <button class="nav-icon" type="button" data-path="/config/dashboard" aria-label="Settings">
+            <ha-icon icon="mdi:cog"></ha-icon>
+          </button>
+        </div>
+      </ha-card>
+    `;
+
+    this.querySelectorAll<HTMLElement>("[data-path]").forEach((element) => {
+      element.addEventListener("click", () => navigate(element.dataset.path || ""));
+    });
   }
 }
 
@@ -695,115 +836,11 @@ function normalizeMediaPlayerCardType(value?: string): MediaPlayerCardType | und
 }
 
 function buildTopNavigation(hass: HomeAssistant, options: StrategyConfig): LovelaceCard {
-  const showCameraButton = options.show_camera_button ?? DEFAULT_SHOW_CAMERA_BUTTON;
-  const cards = [
-    profileAvatarCard(hass),
-    topNavButton("Home", "mdi:home", ROOMS_POPUP_HASH),
-    ...(showCameraButton ? [topNavButton("Cameras", "mdi:video", "#cameras")] : []),
-    topNavButton("Settings", "mdi:cog", "/config/dashboard"),
-  ];
-
   return {
-    type: "grid",
-    square: false,
-    columns: cards.length,
-    cards,
-  };
-}
-
-function topNavButton(name: string, icon: string, navigationPath: string): LovelaceCard {
-  return {
-    type: "custom:bubble-card",
-    card_type: "button",
-    button_type: "name",
-    name: "",
-    icon,
-    button_action: {
-      tap_action: {
-        action: "navigate",
-        navigation_path: navigationPath,
-      },
-    },
-    card_mod: {
-      style: `
-        ha-card {
-          height: 44px;
-          min-height: 44px;
-          border-radius: 999px;
-          background: rgba(255, 255, 255, 0.08);
-          backdrop-filter: blur(16px);
-          box-shadow: none;
-        }
-
-        .bubble-name {
-          display: none !important;
-        }
-
-        .bubble-button-card-container {
-          min-height: 44px !important;
-          height: 44px !important;
-          border-radius: 999px !important;
-          justify-content: center !important;
-        }
-
-        .bubble-icon-container {
-          margin: 0 !important;
-        }
-      `,
-    },
-  };
-}
-
-function profileAvatarCard(hass: HomeAssistant): LovelaceCard {
-  const initial = getUserInitial(hass);
-
-  return {
-    type: "custom:bubble-card",
-    card_type: "button",
-    button_type: "name",
-    name: initial,
-    icon: "mdi:account",
-    button_action: {
-      tap_action: {
-        action: "none",
-      },
-    },
-    card_mod: {
-      style: `
-        ha-card {
-          width: 44px;
-          height: 44px;
-          min-height: 44px;
-          border-radius: 999px;
-          background: rgba(255, 255, 255, 0.12);
-          backdrop-filter: blur(16px);
-          box-shadow: none;
-          overflow: hidden;
-        }
-
-        .bubble-button-card-container {
-          min-height: 44px !important;
-          height: 44px !important;
-          border-radius: 999px !important;
-          justify-content: center !important;
-        }
-
-        .bubble-icon-container {
-          display: none !important;
-        }
-
-        .bubble-name {
-          display: flex !important;
-          align-items: center !important;
-          justify-content: center !important;
-          width: 44px !important;
-          height: 44px !important;
-          margin: 0 !important;
-          font-weight: 700 !important;
-          font-size: 16px !important;
-        }
-      `,
-    },
+    type: `custom:${TOP_NAV_ELEMENT}`,
+    show_camera_button: options.show_camera_button ?? DEFAULT_SHOW_CAMERA_BUTTON,
+    profile_image: options.profile_image,
+    user_initial: getUserInitial(hass),
   };
 }
 
@@ -1003,6 +1040,20 @@ function escapeHtml(value: string) {
     .replace(/'/g, "&#39;");
 }
 
+function navigate(path: string) {
+  if (!path) {
+    return;
+  }
+
+  if (path.startsWith("#")) {
+    window.location.hash = path;
+    return;
+  }
+
+  window.history.pushState(null, "", path);
+  window.dispatchEvent(new Event("location-changed"));
+}
+
 function slugify(value: string) {
   return value
     .toLowerCase()
@@ -1022,6 +1073,10 @@ if (!customElements.get(VIEW_ELEMENT)) {
 
 if (!customElements.get(EDITOR_ELEMENT)) {
   customElements.define(EDITOR_ELEMENT, BubbleCardDashboardStrategyEditor);
+}
+
+if (!customElements.get(TOP_NAV_ELEMENT)) {
+  customElements.define(TOP_NAV_ELEMENT, BubbleCardDashboardTopNav);
 }
 
 window.customStrategies = window.customStrategies || [];

@@ -140,6 +140,7 @@ Example with options:
 strategy:
   type: custom:bubble-card-dashboard
   title: My Home
+  profile_image: /local/profile.jpg
   show_camera_button: true
   media_player_card: bubble-card
   max_entities_per_area: 24
@@ -154,6 +155,7 @@ strategy:
 | Option | Type | Default | Description |
 | --- | --- | --- | --- |
 | `title` | string | Home Assistant location name | Dashboard title |
+| `profile_image` | string | none | Optional image URL for the round avatar in the top navigation |
 | `show_camera_button` | boolean | `true` | Shows or hides the camera icon in the top navigation |
 | `media_player_card` | string | `bubble-card` | Media player card type. Use `bubble-card`, `mini-media-player`, or `yamp` |
 | `max_entities_per_area` | number | `24` | Maximum number of generated entity cards per area |
@@ -167,6 +169,7 @@ The dashboard includes a Home Assistant strategy editor, similar to the editor u
 Open the dashboard, click the edit pencil, then open the dashboard edit dialog. The editor lets you configure:
 
 - dashboard title
+- profile image URL
 - camera button visibility
 - media player card type
 - maximum generated entities per room
