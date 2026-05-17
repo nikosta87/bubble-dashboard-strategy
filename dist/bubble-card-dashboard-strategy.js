@@ -3,9 +3,10 @@ var STRATEGY_TYPE = "bubble-card-dashboard";
 var DASHBOARD_ELEMENT = "ll-strategy-dashboard-bubble-card-dashboard";
 var VIEW_ELEMENT = "ll-strategy-view-bubble-card-dashboard";
 var EDITOR_ELEMENT = "bubble-card-dashboard-strategy-editor";
-var VERSION = "0.7.1";
+var VERSION = "0.8.0";
 var DEFAULT_MAX_ENTITIES_PER_AREA = 24;
 var DEFAULT_MEDIA_PLAYER_CARD = "bubble-card";
+var DEFAULT_SHOW_CAMERA_BUTTON = true;
 var ROOMS_POPUP_HASH = "#rooms";
 var DOMAIN_CARD_TYPES = {
   alarm_control_panel: "button",
@@ -99,6 +100,7 @@ var BubbleCardDashboardStrategyEditor = class extends HTMLElement {
     this._config = {
       media_player_card: DEFAULT_MEDIA_PLAYER_CARD,
       max_entities_per_area: DEFAULT_MAX_ENTITIES_PER_AREA,
+      show_camera_button: DEFAULT_SHOW_CAMERA_BUTTON,
       ...config
     };
     this.render();
@@ -109,6 +111,7 @@ var BubbleCardDashboardStrategyEditor = class extends HTMLElement {
   render() {
     const mediaPlayerCard = getMediaPlayerCardType(this._config);
     const maxEntities = this._config.max_entities_per_area ?? DEFAULT_MAX_ENTITIES_PER_AREA;
+    const showCameraButton = this._config.show_camera_button ?? DEFAULT_SHOW_CAMERA_BUTTON;
     this.innerHTML = `
       <style>
         :host {
@@ -179,6 +182,15 @@ var BubbleCardDashboardStrategyEditor = class extends HTMLElement {
       </div>
 
       <div class="section">
+        <div class="section-title">Navigation</div>
+        <div class="field">
+          <label for="show_camera_button">Camera button</label>
+          <input id="show_camera_button" data-field="show_camera_button" type="checkbox" ${showCameraButton ? "checked" : ""}>
+          <div class="hint">Shows or hides the camera icon in the top navigation.</div>
+        </div>
+      </div>
+
+      <div class="section">
         <div class="section-title">Media</div>
         <div class="field">
           <label for="media_player_card">Media player card</label>
@@ -221,6 +233,10 @@ var BubbleCardDashboardStrategyEditor = class extends HTMLElement {
       this.updateConfig(field, clampNumber(Number(target.value), 1, 100));
       return;
     }
+    if (field === "show_camera_button") {
+      this.updateConfig(field, target.checked);
+      return;
+    }
     this.updateConfig(field, target.value);
   }
   updateConfig(field, value) {
@@ -251,7 +267,7 @@ function buildHomeView(areas, entities, devices, hass, options) {
       {
         type: "grid",
         cards: [
-          buildTopNavigation(),
+          buildTopNavigation(hass, options),
           {
             type: "grid",
             square: false,
@@ -523,17 +539,19 @@ function normalizeMediaPlayerCardType(value) {
   }
   return void 0;
 }
-function buildTopNavigation() {
+function buildTopNavigation(hass, options) {
+  const showCameraButton = options.show_camera_button ?? DEFAULT_SHOW_CAMERA_BUTTON;
+  const cards = [
+    profileAvatarCard(hass),
+    topNavButton("Home", "mdi:home", ROOMS_POPUP_HASH),
+    ...showCameraButton ? [topNavButton("Cameras", "mdi:video", "#cameras")] : [],
+    topNavButton("Settings", "mdi:cog", "/config/dashboard")
+  ];
   return {
     type: "grid",
     square: false,
-    columns: 4,
-    cards: [
-      topNavButton("Home", "mdi:home", ROOMS_POPUP_HASH),
-      topNavButton("Cameras", "mdi:video", "#cameras"),
-      topNavButton("Alerts", "mdi:alert-circle-outline", "#alerts"),
-      topNavButton("Settings", "mdi:cog", "/config/dashboard")
-    ]
+    columns: cards.length,
+    cards
   };
 }
 function topNavButton(name, icon, navigationPath) {
@@ -541,7 +559,7 @@ function topNavButton(name, icon, navigationPath) {
     type: "custom:bubble-card",
     card_type: "button",
     button_type: "name",
-    name,
+    name: "",
     icon,
     button_action: {
       tap_action: {
@@ -560,10 +578,70 @@ function topNavButton(name, icon, navigationPath) {
           box-shadow: none;
         }
 
+        .bubble-name {
+          display: none !important;
+        }
+
         .bubble-button-card-container {
           min-height: 44px !important;
           height: 44px !important;
           border-radius: 999px !important;
+          justify-content: center !important;
+        }
+
+        .bubble-icon-container {
+          margin: 0 !important;
+        }
+      `
+    }
+  };
+}
+function profileAvatarCard(hass) {
+  const initial = getUserInitial(hass);
+  return {
+    type: "custom:bubble-card",
+    card_type: "button",
+    button_type: "name",
+    name: initial,
+    icon: "mdi:account",
+    button_action: {
+      tap_action: {
+        action: "none"
+      }
+    },
+    card_mod: {
+      style: `
+        ha-card {
+          width: 44px;
+          height: 44px;
+          min-height: 44px;
+          border-radius: 999px;
+          background: rgba(255, 255, 255, 0.12);
+          backdrop-filter: blur(16px);
+          box-shadow: none;
+          overflow: hidden;
+        }
+
+        .bubble-button-card-container {
+          min-height: 44px !important;
+          height: 44px !important;
+          border-radius: 999px !important;
+          justify-content: center !important;
+        }
+
+        .bubble-icon-container {
+          display: none !important;
+        }
+
+        .bubble-name {
+          display: flex !important;
+          align-items: center !important;
+          justify-content: center !important;
+          width: 44px !important;
+          height: 44px !important;
+          margin: 0 !important;
+          font-weight: 700 !important;
+          font-size: 16px !important;
         }
       `
     }
@@ -703,6 +781,9 @@ function getFriendlyName(entity, hass) {
   const state = hass.states[entity.entity_id];
   const friendlyName = state?.attributes.friendly_name;
   return String(friendlyName || entity.name || entity.original_name || entity.entity_id);
+}
+function getUserInitial(hass) {
+  return (hass.user?.name || "?").trim().slice(0, 1).toUpperCase() || "?";
 }
 function mediaPlayerCardOption(value, label, selectedValue) {
   return `<option value="${value}" ${value === selectedValue ? "selected" : ""}>${label}</option>`;

@@ -26,6 +26,9 @@ type HomeAssistant = {
   config: {
     location_name?: string;
   };
+  user?: {
+    name?: string;
+  };
   states: Record<
     string,
     {
@@ -45,6 +48,7 @@ type StrategyConfig = {
   ignored_domains?: string[];
   max_entities_per_area?: number;
   media_player_card?: MediaPlayerCardType;
+  show_camera_button?: boolean;
 };
 
 type MediaPlayerCardType = "bubble-card" | "mini-media-player" | "yamp";
@@ -54,9 +58,10 @@ const STRATEGY_TYPE = "bubble-card-dashboard";
 const DASHBOARD_ELEMENT = "ll-strategy-dashboard-bubble-card-dashboard";
 const VIEW_ELEMENT = "ll-strategy-view-bubble-card-dashboard";
 const EDITOR_ELEMENT = "bubble-card-dashboard-strategy-editor";
-const VERSION = "0.7.1";
+const VERSION = "0.8.0";
 const DEFAULT_MAX_ENTITIES_PER_AREA = 24;
 const DEFAULT_MEDIA_PLAYER_CARD: MediaPlayerCardType = "bubble-card";
+const DEFAULT_SHOW_CAMERA_BUTTON = true;
 const ROOMS_POPUP_HASH = "#rooms";
 
 const DOMAIN_CARD_TYPES: Record<string, string> = {
@@ -165,6 +170,7 @@ class BubbleCardDashboardStrategyEditor extends HTMLElement {
     this._config = {
       media_player_card: DEFAULT_MEDIA_PLAYER_CARD,
       max_entities_per_area: DEFAULT_MAX_ENTITIES_PER_AREA,
+      show_camera_button: DEFAULT_SHOW_CAMERA_BUTTON,
       ...config,
     };
     this.render();
@@ -177,6 +183,7 @@ class BubbleCardDashboardStrategyEditor extends HTMLElement {
   private render() {
     const mediaPlayerCard = getMediaPlayerCardType(this._config);
     const maxEntities = this._config.max_entities_per_area ?? DEFAULT_MAX_ENTITIES_PER_AREA;
+    const showCameraButton = this._config.show_camera_button ?? DEFAULT_SHOW_CAMERA_BUTTON;
 
     this.innerHTML = `
       <style>
@@ -248,6 +255,15 @@ class BubbleCardDashboardStrategyEditor extends HTMLElement {
       </div>
 
       <div class="section">
+        <div class="section-title">Navigation</div>
+        <div class="field">
+          <label for="show_camera_button">Camera button</label>
+          <input id="show_camera_button" data-field="show_camera_button" type="checkbox" ${showCameraButton ? "checked" : ""}>
+          <div class="hint">Shows or hides the camera icon in the top navigation.</div>
+        </div>
+      </div>
+
+      <div class="section">
         <div class="section-title">Media</div>
         <div class="field">
           <label for="media_player_card">Media player card</label>
@@ -297,6 +313,11 @@ class BubbleCardDashboardStrategyEditor extends HTMLElement {
       return;
     }
 
+    if (field === "show_camera_button") {
+      this.updateConfig(field, (target as HTMLInputElement).checked);
+      return;
+    }
+
     this.updateConfig(field, target.value);
   }
 
@@ -337,7 +358,7 @@ function buildHomeView(
       {
         type: "grid",
         cards: [
-          buildTopNavigation(),
+          buildTopNavigation(hass, options),
           {
             type: "grid",
             square: false,
@@ -673,17 +694,20 @@ function normalizeMediaPlayerCardType(value?: string): MediaPlayerCardType | und
   return undefined;
 }
 
-function buildTopNavigation(): LovelaceCard {
+function buildTopNavigation(hass: HomeAssistant, options: StrategyConfig): LovelaceCard {
+  const showCameraButton = options.show_camera_button ?? DEFAULT_SHOW_CAMERA_BUTTON;
+  const cards = [
+    profileAvatarCard(hass),
+    topNavButton("Home", "mdi:home", ROOMS_POPUP_HASH),
+    ...(showCameraButton ? [topNavButton("Cameras", "mdi:video", "#cameras")] : []),
+    topNavButton("Settings", "mdi:cog", "/config/dashboard"),
+  ];
+
   return {
     type: "grid",
     square: false,
-    columns: 4,
-    cards: [
-      topNavButton("Home", "mdi:home", ROOMS_POPUP_HASH),
-      topNavButton("Cameras", "mdi:video", "#cameras"),
-      topNavButton("Alerts", "mdi:alert-circle-outline", "#alerts"),
-      topNavButton("Settings", "mdi:cog", "/config/dashboard"),
-    ],
+    columns: cards.length,
+    cards,
   };
 }
 
@@ -692,7 +716,7 @@ function topNavButton(name: string, icon: string, navigationPath: string): Lovel
     type: "custom:bubble-card",
     card_type: "button",
     button_type: "name",
-    name,
+    name: "",
     icon,
     button_action: {
       tap_action: {
@@ -711,10 +735,72 @@ function topNavButton(name: string, icon: string, navigationPath: string): Lovel
           box-shadow: none;
         }
 
+        .bubble-name {
+          display: none !important;
+        }
+
         .bubble-button-card-container {
           min-height: 44px !important;
           height: 44px !important;
           border-radius: 999px !important;
+          justify-content: center !important;
+        }
+
+        .bubble-icon-container {
+          margin: 0 !important;
+        }
+      `,
+    },
+  };
+}
+
+function profileAvatarCard(hass: HomeAssistant): LovelaceCard {
+  const initial = getUserInitial(hass);
+
+  return {
+    type: "custom:bubble-card",
+    card_type: "button",
+    button_type: "name",
+    name: initial,
+    icon: "mdi:account",
+    button_action: {
+      tap_action: {
+        action: "none",
+      },
+    },
+    card_mod: {
+      style: `
+        ha-card {
+          width: 44px;
+          height: 44px;
+          min-height: 44px;
+          border-radius: 999px;
+          background: rgba(255, 255, 255, 0.12);
+          backdrop-filter: blur(16px);
+          box-shadow: none;
+          overflow: hidden;
+        }
+
+        .bubble-button-card-container {
+          min-height: 44px !important;
+          height: 44px !important;
+          border-radius: 999px !important;
+          justify-content: center !important;
+        }
+
+        .bubble-icon-container {
+          display: none !important;
+        }
+
+        .bubble-name {
+          display: flex !important;
+          align-items: center !important;
+          justify-content: center !important;
+          width: 44px !important;
+          height: 44px !important;
+          margin: 0 !important;
+          font-weight: 700 !important;
+          font-size: 16px !important;
         }
       `,
     },
@@ -890,6 +976,10 @@ function getFriendlyName(entity: HassEntity, hass: HomeAssistant) {
   const friendlyName = state?.attributes.friendly_name;
 
   return String(friendlyName || entity.name || entity.original_name || entity.entity_id);
+}
+
+function getUserInitial(hass: HomeAssistant) {
+  return (hass.user?.name || "?").trim().slice(0, 1).toUpperCase() || "?";
 }
 
 function mediaPlayerCardOption(value: MediaPlayerCardType, label: string, selectedValue: MediaPlayerCardType) {
