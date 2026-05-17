@@ -143,6 +143,7 @@ strategy:
   profile_image: /local/profile.jpg
   show_camera_button: true
   media_player_card: bubble-card
+  enable_sonos_grouping: true
   max_entities_per_area: 24
   ignored_domains:
     - sensor
@@ -158,6 +159,8 @@ strategy:
 | `profile_image` | string | none | Optional image URL for the round avatar in the top navigation |
 | `show_camera_button` | boolean | `true` | Shows or hides the camera icon in the top navigation |
 | `media_player_card` | string | `bubble-card` | Media player card type. Use `bubble-card`, `mini-media-player`, or `yamp` |
+| `enable_sonos_grouping` | boolean | `true` | Adds Mini Media Player speaker group controls for detected Sonos media players |
+| `sonos_entities` | string[] | auto-detected | Optional list of Sonos `media_player` entities when auto-detection is not enough |
 | `max_entities_per_area` | number | `24` | Maximum number of generated entity cards per area |
 | `ignored_domains` | string[] | `[]` | Domains to exclude from generated room views |
 | `ignored_entities` | string[] | `[]` | Specific entities to exclude |
@@ -195,6 +198,20 @@ strategy:
 ```
 
 This requires [Mini Media Player](https://github.com/kalkih/mini-media-player) to be installed separately.
+
+When Mini Media Player is selected, the generated card uses `artwork: material`. If Sonos media players are detected, the strategy also adds Mini Media Player's `speaker_group` config:
+
+```yaml
+speaker_group:
+  platform: sonos
+  entities:
+    - media_player.living_room
+    - media_player.kitchen
+  sync_volume: true
+  show_group_count: true
+```
+
+You can disable this in the dashboard editor with **Sonos grouping**.
 
 You can also use Yet Another Media Player:
 

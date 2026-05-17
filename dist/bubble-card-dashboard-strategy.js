@@ -3,10 +3,11 @@ var STRATEGY_TYPE = "bubble-card-dashboard";
 var DASHBOARD_ELEMENT = "ll-strategy-dashboard-bubble-card-dashboard";
 var VIEW_ELEMENT = "ll-strategy-view-bubble-card-dashboard";
 var EDITOR_ELEMENT = "bubble-card-dashboard-strategy-editor";
-var VERSION = "0.11.1";
+var VERSION = "0.12.0";
 var DEFAULT_MAX_ENTITIES_PER_AREA = 24;
 var DEFAULT_MEDIA_PLAYER_CARD = "bubble-card";
 var DEFAULT_SHOW_CAMERA_BUTTON = true;
+var DEFAULT_ENABLE_SONOS_GROUPING = true;
 var ROOMS_POPUP_HASH = "#rooms";
 var DOMAIN_CARD_TYPES = {
   alarm_control_panel: "button",
@@ -63,7 +64,8 @@ var BubbleDashboardStrategy = class extends HTMLElement {
             areas: activeAreas,
             devices,
             entities,
-            options: config
+            options: config,
+            sonosEntities: getSonosMediaPlayers(entities, config)
           }
         }
       ]
@@ -83,7 +85,8 @@ var BubbleViewStrategy = class extends HTMLElement {
         config.entities,
         config.devices,
         hass,
-        options
+        options,
+        config.sonosEntities
       );
     }
     return buildAreaView(config.area, config.entities, config.devices, hass, options);
@@ -101,6 +104,7 @@ var BubbleCardDashboardStrategyEditor = class extends HTMLElement {
       media_player_card: DEFAULT_MEDIA_PLAYER_CARD,
       max_entities_per_area: DEFAULT_MAX_ENTITIES_PER_AREA,
       show_camera_button: DEFAULT_SHOW_CAMERA_BUTTON,
+      enable_sonos_grouping: DEFAULT_ENABLE_SONOS_GROUPING,
       ...config
     };
     this.render();
@@ -112,6 +116,7 @@ var BubbleCardDashboardStrategyEditor = class extends HTMLElement {
     const mediaPlayerCard = getMediaPlayerCardType(this._config);
     const maxEntities = this._config.max_entities_per_area ?? DEFAULT_MAX_ENTITIES_PER_AREA;
     const showCameraButton = this._config.show_camera_button ?? DEFAULT_SHOW_CAMERA_BUTTON;
+    const enableSonosGrouping = this._config.enable_sonos_grouping ?? DEFAULT_ENABLE_SONOS_GROUPING;
     this.innerHTML = `
       <style>
         :host {
@@ -206,6 +211,11 @@ var BubbleCardDashboardStrategyEditor = class extends HTMLElement {
           </select>
           <div class="hint">Mini Media Player and YAMP must be installed separately before selecting them.</div>
         </div>
+        <div class="field">
+          <label for="enable_sonos_grouping">Sonos grouping</label>
+          <input id="enable_sonos_grouping" data-field="enable_sonos_grouping" type="checkbox" ${enableSonosGrouping ? "checked" : ""}>
+          <div class="hint">Adds Mini Media Player speaker group controls for detected Sonos media players.</div>
+        </div>
       </div>
 
       <div class="section">
@@ -238,7 +248,7 @@ var BubbleCardDashboardStrategyEditor = class extends HTMLElement {
       this.updateConfig(field, clampNumber(Number(target.value), 1, 100));
       return;
     }
-    if (field === "show_camera_button") {
+    if (field === "show_camera_button" || field === "enable_sonos_grouping") {
       this.updateConfig(field, target.checked);
       return;
     }
@@ -264,7 +274,7 @@ var BubbleCardDashboardStrategyEditor = class extends HTMLElement {
     );
   }
 };
-function buildHomeView(areas, entities, devices, hass, options) {
+function buildHomeView(areas, entities, devices, hass, options, sonosEntities = []) {
   return {
     type: "sections",
     max_columns: 2,
@@ -277,16 +287,16 @@ function buildHomeView(areas, entities, devices, hass, options) {
             type: "grid",
             square: false,
             columns: 2,
-            cards: buildOverviewCards(entities, hass, options)
+            cards: buildOverviewCards(entities, hass, options, sonosEntities)
           },
           buildRoomsPopup(areas, entities, devices),
-          ...areas.map((area) => buildRoomPopup(area, entities, devices, hass, options))
+          ...areas.map((area) => buildRoomPopup(area, entities, devices, hass, options, sonosEntities))
         ]
       }
     ]
   };
 }
-function buildOverviewCards(entities, hass, options) {
+function buildOverviewCards(entities, hass, options, sonosEntities) {
   const weather = findFirstStateEntity(hass, ["weather"]);
   const mediaPlayer = findLastUsedMediaPlayer(hass);
   const climate = findFirstStateEntity(hass, ["climate"]);
@@ -300,7 +310,7 @@ function buildOverviewCards(entities, hass, options) {
       })
     ] : [],
     ...mediaPlayer ? [
-      fixedHomeCard(mediaPlayerToCard(mediaPlayer, options))
+      fixedHomeCard(mediaPlayerToCard(mediaPlayer, options, sonosEntities))
     ] : [],
     ...climate ? [
       fixedHomeCard({
@@ -362,7 +372,7 @@ function buildRoomsPopup(areas, entities, devices) {
     ]
   };
 }
-function buildRoomPopup(area, entities, devices, hass, options) {
+function buildRoomPopup(area, entities, devices, hass, options, sonosEntities = []) {
   const areaEntities = getAreaEntities(area.area_id, entities, devices, hass, options).slice(
     0,
     options.max_entities_per_area ?? DEFAULT_MAX_ENTITIES_PER_AREA
@@ -378,7 +388,7 @@ function buildRoomPopup(area, entities, devices, hass, options) {
       type: "grid",
       square: false,
       columns: group.columns,
-      cards: group.entities.map((entity) => entityToCard(entity, options))
+      cards: group.entities.map((entity) => entityToCard(entity, options, sonosEntities))
     });
   });
   if (cards.length === 1) {
@@ -476,10 +486,10 @@ function getAreaEntities(areaId, entities, devices, hass, options) {
   const ignoredDomains = /* @__PURE__ */ new Set([...options.ignored_domains ?? [], ...DEFAULT_IGNORED_DOMAINS]);
   return entities.filter((entity) => entityBelongsToArea(entity, areaId, devices)).filter((entity) => entity.entity_id in hass.states).filter((entity) => !entity.hidden_by && !entity.disabled_by).filter((entity) => !ignoredEntities.has(entity.entity_id)).filter((entity) => !ignoredDomains.has(getDomain(entity.entity_id))).filter((entity) => DOMAIN_CARD_TYPES[getDomain(entity.entity_id)]).sort((left, right) => getFriendlyName(left, hass).localeCompare(getFriendlyName(right, hass)));
 }
-function entityToCard(entity, options) {
+function entityToCard(entity, options, sonosEntities = []) {
   const domain = getDomain(entity.entity_id);
   if (domain === "media_player") {
-    return mediaPlayerToCard(entity.entity_id, options);
+    return mediaPlayerToCard(entity.entity_id, options, sonosEntities);
   }
   return entityToBubbleCard(entity);
 }
@@ -500,19 +510,27 @@ function entityToBubbleCard(entity) {
     entity: entity.entity_id
   };
 }
-function mediaPlayerToCard(entityId, options) {
+function mediaPlayerToCard(entityId, options, sonosEntities = []) {
   switch (getMediaPlayerCardType(options)) {
     case "mini-media-player":
       return {
         type: "custom:mini-media-player",
         entity: entityId,
-        artwork: "full-cover",
+        artwork: "material",
         info: "scroll",
         idle_view: {
           when_idle: true,
           when_paused: true,
           when_standby: true
-        }
+        },
+        ...shouldAddSonosGrouping(options, sonosEntities) ? {
+          speaker_group: {
+            platform: "sonos",
+            entities: sonosEntities,
+            sync_volume: true,
+            show_group_count: true
+          }
+        } : {}
       };
     case "yamp":
       return {
@@ -543,6 +561,20 @@ function normalizeMediaPlayerCardType(value) {
     return normalizedValue;
   }
   return void 0;
+}
+function shouldAddSonosGrouping(options, sonosEntities) {
+  return (options.enable_sonos_grouping ?? DEFAULT_ENABLE_SONOS_GROUPING) && sonosEntities.length > 1;
+}
+function getSonosMediaPlayers(entities, options) {
+  return [
+    .../* @__PURE__ */ new Set([
+      ...entities.filter(isSonosMediaPlayer).map((entity) => entity.entity_id),
+      ...(options.sonos_entities || []).filter((entityId) => getDomain(entityId) === "media_player")
+    ])
+  ].sort();
+}
+function isSonosMediaPlayer(entity) {
+  return getDomain(entity.entity_id) === "media_player" && entity.platform === "sonos";
 }
 function buildTopNavigation(hass, options) {
   const showCameraButton = options.show_camera_button ?? DEFAULT_SHOW_CAMERA_BUTTON;

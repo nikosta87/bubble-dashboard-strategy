@@ -4,6 +4,7 @@ type HassEntity = {
   entity_id: string;
   device_id?: string | null;
   area_id?: string | null;
+  platform?: string | null;
   hidden_by?: string | null;
   disabled_by?: string | null;
   name?: string | null;
@@ -50,6 +51,8 @@ type StrategyConfig = {
   max_entities_per_area?: number;
   media_player_card?: MediaPlayerCardType;
   show_camera_button?: boolean;
+  enable_sonos_grouping?: boolean;
+  sonos_entities?: string[];
 };
 
 type MediaPlayerCardType = "bubble-card" | "mini-media-player" | "yamp";
@@ -59,10 +62,11 @@ const STRATEGY_TYPE = "bubble-card-dashboard";
 const DASHBOARD_ELEMENT = "ll-strategy-dashboard-bubble-card-dashboard";
 const VIEW_ELEMENT = "ll-strategy-view-bubble-card-dashboard";
 const EDITOR_ELEMENT = "bubble-card-dashboard-strategy-editor";
-const VERSION = "0.11.1";
+const VERSION = "0.12.0";
 const DEFAULT_MAX_ENTITIES_PER_AREA = 24;
 const DEFAULT_MEDIA_PLAYER_CARD: MediaPlayerCardType = "bubble-card";
 const DEFAULT_SHOW_CAMERA_BUTTON = true;
+const DEFAULT_ENABLE_SONOS_GROUPING = true;
 const ROOMS_POPUP_HASH = "#rooms";
 
 const DOMAIN_CARD_TYPES: Record<string, string> = {
@@ -128,6 +132,7 @@ class BubbleDashboardStrategy extends HTMLElement {
             devices,
             entities,
             options: config,
+            sonosEntities: getSonosMediaPlayers(entities, config),
           },
         },
       ],
@@ -151,6 +156,7 @@ class BubbleViewStrategy extends HTMLElement {
         config.devices as HassDevice[],
         hass,
         options,
+        config.sonosEntities as string[] | undefined,
       );
     }
 
@@ -172,6 +178,7 @@ class BubbleCardDashboardStrategyEditor extends HTMLElement {
       media_player_card: DEFAULT_MEDIA_PLAYER_CARD,
       max_entities_per_area: DEFAULT_MAX_ENTITIES_PER_AREA,
       show_camera_button: DEFAULT_SHOW_CAMERA_BUTTON,
+      enable_sonos_grouping: DEFAULT_ENABLE_SONOS_GROUPING,
       ...config,
     };
     this.render();
@@ -185,6 +192,7 @@ class BubbleCardDashboardStrategyEditor extends HTMLElement {
     const mediaPlayerCard = getMediaPlayerCardType(this._config);
     const maxEntities = this._config.max_entities_per_area ?? DEFAULT_MAX_ENTITIES_PER_AREA;
     const showCameraButton = this._config.show_camera_button ?? DEFAULT_SHOW_CAMERA_BUTTON;
+    const enableSonosGrouping = this._config.enable_sonos_grouping ?? DEFAULT_ENABLE_SONOS_GROUPING;
 
     this.innerHTML = `
       <style>
@@ -280,6 +288,11 @@ class BubbleCardDashboardStrategyEditor extends HTMLElement {
           </select>
           <div class="hint">Mini Media Player and YAMP must be installed separately before selecting them.</div>
         </div>
+        <div class="field">
+          <label for="enable_sonos_grouping">Sonos grouping</label>
+          <input id="enable_sonos_grouping" data-field="enable_sonos_grouping" type="checkbox" ${enableSonosGrouping ? "checked" : ""}>
+          <div class="hint">Adds Mini Media Player speaker group controls for detected Sonos media players.</div>
+        </div>
       </div>
 
       <div class="section">
@@ -319,7 +332,7 @@ class BubbleCardDashboardStrategyEditor extends HTMLElement {
       return;
     }
 
-    if (field === "show_camera_button") {
+    if (field === "show_camera_button" || field === "enable_sonos_grouping") {
       this.updateConfig(field, (target as HTMLInputElement).checked);
       return;
     }
@@ -356,6 +369,7 @@ function buildHomeView(
   devices: HassDevice[],
   hass: HomeAssistant,
   options: StrategyConfig,
+  sonosEntities: string[] = [],
 ) {
   return {
     type: "sections",
@@ -369,17 +383,22 @@ function buildHomeView(
             type: "grid",
             square: false,
             columns: 2,
-            cards: buildOverviewCards(entities, hass, options),
+            cards: buildOverviewCards(entities, hass, options, sonosEntities),
           },
           buildRoomsPopup(areas, entities, devices),
-          ...areas.map((area) => buildRoomPopup(area, entities, devices, hass, options)),
+      ...areas.map((area) => buildRoomPopup(area, entities, devices, hass, options, sonosEntities)),
         ],
       },
     ],
   };
 }
 
-function buildOverviewCards(entities: HassEntity[], hass: HomeAssistant, options: StrategyConfig): LovelaceCard[] {
+function buildOverviewCards(
+  entities: HassEntity[],
+  hass: HomeAssistant,
+  options: StrategyConfig,
+  sonosEntities: string[],
+): LovelaceCard[] {
   const weather = findFirstStateEntity(hass, ["weather"]);
   const mediaPlayer = findLastUsedMediaPlayer(hass);
   const climate = findFirstStateEntity(hass, ["climate"]);
@@ -397,7 +416,7 @@ function buildOverviewCards(entities: HassEntity[], hass: HomeAssistant, options
       : []),
     ...(mediaPlayer
       ? [
-          fixedHomeCard(mediaPlayerToCard(mediaPlayer, options)),
+          fixedHomeCard(mediaPlayerToCard(mediaPlayer, options, sonosEntities)),
         ]
       : []),
     ...(climate
@@ -471,6 +490,7 @@ function buildRoomPopup(
   devices: HassDevice[],
   hass: HomeAssistant,
   options: StrategyConfig,
+  sonosEntities: string[] = [],
 ): LovelaceCard {
   const areaEntities = getAreaEntities(area.area_id, entities, devices, hass, options).slice(
     0,
@@ -489,7 +509,7 @@ function buildRoomPopup(
       type: "grid",
       square: false,
       columns: group.columns,
-      cards: group.entities.map((entity) => entityToCard(entity, options)),
+      cards: group.entities.map((entity) => entityToCard(entity, options, sonosEntities)),
     });
   });
 
@@ -619,11 +639,11 @@ function getAreaEntities(
     .sort((left, right) => getFriendlyName(left, hass).localeCompare(getFriendlyName(right, hass)));
 }
 
-function entityToCard(entity: HassEntity, options: StrategyConfig): LovelaceCard {
+function entityToCard(entity: HassEntity, options: StrategyConfig, sonosEntities: string[] = []): LovelaceCard {
   const domain = getDomain(entity.entity_id);
 
   if (domain === "media_player") {
-    return mediaPlayerToCard(entity.entity_id, options);
+    return mediaPlayerToCard(entity.entity_id, options, sonosEntities);
   }
 
   return entityToBubbleCard(entity);
@@ -649,19 +669,29 @@ function entityToBubbleCard(entity: HassEntity): LovelaceCard {
   };
 }
 
-function mediaPlayerToCard(entityId: string, options: StrategyConfig): LovelaceCard {
+function mediaPlayerToCard(entityId: string, options: StrategyConfig, sonosEntities: string[] = []): LovelaceCard {
   switch (getMediaPlayerCardType(options)) {
     case "mini-media-player":
       return {
         type: "custom:mini-media-player",
         entity: entityId,
-        artwork: "full-cover",
+        artwork: "material",
         info: "scroll",
         idle_view: {
           when_idle: true,
           when_paused: true,
           when_standby: true,
         },
+        ...(shouldAddSonosGrouping(options, sonosEntities)
+          ? {
+              speaker_group: {
+                platform: "sonos",
+                entities: sonosEntities,
+                sync_volume: true,
+                show_group_count: true,
+              },
+            }
+          : {}),
       };
     case "yamp":
       return {
@@ -698,6 +728,23 @@ function normalizeMediaPlayerCardType(value?: string): MediaPlayerCardType | und
   }
 
   return undefined;
+}
+
+function shouldAddSonosGrouping(options: StrategyConfig, sonosEntities: string[]) {
+  return (options.enable_sonos_grouping ?? DEFAULT_ENABLE_SONOS_GROUPING) && sonosEntities.length > 1;
+}
+
+function getSonosMediaPlayers(entities: HassEntity[], options: StrategyConfig) {
+  return [
+    ...new Set([
+      ...entities.filter(isSonosMediaPlayer).map((entity) => entity.entity_id),
+      ...(options.sonos_entities || []).filter((entityId) => getDomain(entityId) === "media_player"),
+    ]),
+  ].sort();
+}
+
+function isSonosMediaPlayer(entity: HassEntity) {
+  return getDomain(entity.entity_id) === "media_player" && entity.platform === "sonos";
 }
 
 function buildTopNavigation(hass: HomeAssistant, options: StrategyConfig): LovelaceCard {
